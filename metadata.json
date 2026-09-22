@@ -1,0 +1,6 @@
+{
+  "name": "Portfolio CMS",
+  "description": "Custom CMS-powered portfolio backend and foundation with PostgreSQL through Supabase.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

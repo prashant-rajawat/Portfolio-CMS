@@ -1,0 +1,16 @@
+{
+  "name": "portfolio-cms-backend",
+  "version": "0.1.0",
+  "description": "Custom CMS-powered portfolio backend foundation",
+  "type": "module",
+  "main": "src/server.ts",
+  "scripts": {
+    "dev": "tsx src/server.ts",
+    "typecheck": "tsc --noEmit",
+    "migrate": "tsx src/scripts/runMigrations.ts",
+    "db:verify": "tsx src/scripts/verifyDatabase.ts",
+    "test:db": "tsx src/scripts/testMigrationsOffline.ts",
+    "create:admin": "tsx src/scripts/createAdmin.ts",
+    "test:auth": "tsx src/scripts/testAuth.ts"
+  }
+}

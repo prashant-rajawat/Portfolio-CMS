@@ -1,0 +1,25 @@
+import { Request, Response, NextFunction } from 'express';
+import { logger } from '../utils/logger.ts';
+
+export function requestLogger(req: Request, res: Response, next: NextFunction): void {
+  const start = Date.now();
+  const { method, originalUrl, ip } = req;
+
+  // Log incoming request
+  logger.info(`Request received: ${method} ${originalUrl} from ${ip || 'unknown'}`);
+
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    const statusCode = res.statusCode;
+
+    if (statusCode >= 500) {
+      logger.error(`Response sent: ${method} ${originalUrl} ${statusCode} (${duration}ms)`);
+    } else if (statusCode >= 400) {
+      logger.warn(`Response sent: ${method} ${originalUrl} ${statusCode} (${duration}ms)`);
+    } else {
+      logger.info(`Response sent: ${method} ${originalUrl} ${statusCode} (${duration}ms)`);
+    }
+  });
+
+  next();
+}
