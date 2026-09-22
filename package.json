@@ -23,6 +23,8 @@
     "test:testimonials": "tsx backend/src/scripts/testStep11Testimonials.ts",
     "test:services": "tsx backend/src/scripts/testStep12Services.ts",
     "test:media": "tsx backend/src/scripts/testStep13Media.ts",
+    "test:messages": "tsx backend/src/scripts/testStep14Messages.ts",
+    "test:public": "tsx backend/src/scripts/testStep15PublicFrontend.ts",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit"

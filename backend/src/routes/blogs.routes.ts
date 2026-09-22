@@ -8,8 +8,9 @@ import { createBlogSchema, updateBlogSchema } from '../validators/blogs.validato
 
 const router = Router();
 
-// Public endpoint
+// Public endpoints
 router.get('/', BlogsController.getAll);
+router.get('/:slug', BlogsController.getBySlug);
 
 // Protected Admin mutation endpoints
 router.post(

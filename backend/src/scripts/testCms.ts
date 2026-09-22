@@ -664,13 +664,17 @@ async function runCmsTests() {
     });
     recordTest(38, 'HTTP DELETE /api/blogs/:id cleanup (200)', deleteBlogRes.status === 200);
 
-    // 39. Reserved future routes (/api/contact) return 501 Not Implemented, and /api/upload enforces auth (401)
+    // 39. Endpoint security: /api/upload enforces auth (401), and /api/contact rejects unauthenticated/invalid requests
     const uploadRes = await fetch(`${baseUrl}/api/upload`);
-    const contactRes = await fetch(`${baseUrl}/api/contact`);
+    const contactPostInvalid = await fetch(`${baseUrl}/api/contact`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
     recordTest(
       39,
-      'Reserved route /api/contact returns 501, /api/upload enforces auth (401)',
-      contactRes.status === 501 && uploadRes.status === 401
+      'Endpoint security: /api/upload enforces auth (401) and /api/contact validates input (400)',
+      uploadRes.status === 401 && contactPostInvalid.status === 400
     );
 
   } finally {

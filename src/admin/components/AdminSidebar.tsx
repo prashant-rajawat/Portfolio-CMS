@@ -66,10 +66,11 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ isOpen, onClose }) =
   useEffect(() => {
     let isMounted = true;
     api
-      .get<{ unread_count?: number; unreadCount?: number }>('/api/messages')
+      .get<any>('/api/messages')
       .then((res) => {
         if (isMounted) {
-          const count = res.unread_count ?? res.unreadCount ?? 0;
+          const raw = res as any;
+          const count = raw.unread_count ?? raw.unreadCount ?? (Array.isArray(raw.data) ? raw.data.filter((m: any) => !m.is_read).length : 0);
           setUnreadCount(count);
         }
       })
@@ -153,11 +154,13 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ isOpen, onClose }) =
                     <Icon className="w-4 h-4 flex-shrink-0" />
                     <span>{item.name}</span>
                   </div>
-                  {item.tag && (
+                  {item.getBadge ? (
+                    item.getBadge(unreadCount)
+                  ) : item.tag ? (
                     <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">
                       {item.tag}
                     </span>
-                  )}
+                  ) : null}
                 </NavLink>
               );
             })}

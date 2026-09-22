@@ -93,15 +93,20 @@ export const AdminMessagesPage: React.FC = () => {
     setInitialLoading(true);
     setErrorMessage(null);
     try {
-      const response = await api.get<{ data?: MessageItem[]; unread_count?: number; unreadCount?: number }>('/api/messages');
-      const items: MessageItem[] = Array.isArray(response.data) ? response.data : [];
+      const response = await api.get<MessageItem[]>('/api/messages');
+      const raw = response as any;
+      const items: MessageItem[] = Array.isArray(response.data)
+        ? response.data
+        : Array.isArray(raw)
+        ? raw
+        : [];
       setMessages(items);
 
       const count =
-        typeof response.unread_count === 'number'
-          ? response.unread_count
-          : typeof response.unreadCount === 'number'
-          ? response.unreadCount
+        typeof raw.unread_count === 'number'
+          ? raw.unread_count
+          : typeof raw.unreadCount === 'number'
+          ? raw.unreadCount
           : items.filter((m) => !m.is_read).length;
 
       setUnreadCount(count);

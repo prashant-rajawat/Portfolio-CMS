@@ -1,12 +1,25 @@
 import { Request, Response, NextFunction } from 'express';
 import { ProjectsService } from '../services/projects.service.ts';
 import { sendSuccess } from '../utils/response.ts';
+import { NotFoundError } from '../utils/errors.ts';
 
 export class ProjectsController {
   public static async getAll(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const projects = await ProjectsService.getAll();
       sendSuccess(res, 'Projects fetched successfully', projects, 200);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  public static async getBySlug(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const project = await ProjectsService.getBySlug(req.params.slug);
+      if (!project) {
+        throw new NotFoundError(`Project with slug '${req.params.slug}' not found`);
+      }
+      sendSuccess(res, 'Project fetched successfully', project, 200);
     } catch (err) {
       next(err);
     }

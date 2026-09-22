@@ -8,8 +8,9 @@ import { createProjectSchema, updateProjectSchema } from '../validators/projects
 
 const router = Router();
 
-// Public endpoint
+// Public endpoints
 router.get('/', ProjectsController.getAll);
+router.get('/:slug', ProjectsController.getBySlug);
 
 // Protected Admin mutation endpoints
 router.post(

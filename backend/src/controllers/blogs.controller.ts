@@ -1,12 +1,25 @@
 import { Request, Response, NextFunction } from 'express';
 import { BlogsService } from '../services/blogs.service.ts';
 import { sendSuccess } from '../utils/response.ts';
+import { NotFoundError } from '../utils/errors.ts';
 
 export class BlogsController {
   public static async getAll(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const blogs = await BlogsService.getAll();
       sendSuccess(res, 'Blogs fetched successfully', blogs, 200);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  public static async getBySlug(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const blog = await BlogsService.getBySlug(req.params.slug);
+      if (!blog) {
+        throw new NotFoundError(`Blog post with slug '${req.params.slug}' not found`);
+      }
+      sendSuccess(res, 'Blog post fetched successfully', blog, 200);
     } catch (err) {
       next(err);
     }

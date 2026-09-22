@@ -11,7 +11,7 @@ export interface ContactNotificationData {
 }
 
 export interface IEmailTransporter {
-  sendMail(mailOptions: nodemailer.SendMailOptions): Promise<any>;
+  sendMail(mailOptions: any): Promise<any>;
 }
 
 /**
