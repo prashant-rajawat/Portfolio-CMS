@@ -3,6 +3,8 @@ import { UploadController } from '../controllers/upload.controller.ts';
 import { authenticateToken } from '../middleware/authenticateToken.ts';
 import { requireAdmin } from '../middleware/requireAdmin.ts';
 import { uploadSingleImage } from '../middleware/upload.middleware.ts';
+import { validateRequest } from '../middleware/validator.ts';
+import { uuidParamSchema } from '../validators/common.validator.ts';
 
 const router = Router();
 
@@ -41,7 +43,20 @@ router.get(
   '/:id',
   authenticateToken,
   requireAdmin,
+  validateRequest({ params: uuidParamSchema }),
   UploadController.getById
+);
+
+/**
+ * DELETE /api/upload/:id
+ * Safely delete media item and associated storage object
+ */
+router.delete(
+  '/:id',
+  authenticateToken,
+  requireAdmin,
+  validateRequest({ params: uuidParamSchema }),
+  UploadController.delete
 );
 
 export default router;

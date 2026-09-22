@@ -4,7 +4,13 @@ import { AdminLoginPage } from '../pages/AdminLoginPage.tsx';
 import { AdminDashboardPage } from '../pages/AdminDashboardPage.tsx';
 import { AdminAboutPage } from '../pages/AdminAboutPage.tsx';
 import { AdminSkillsPage } from '../pages/AdminSkillsPage.tsx';
-import { AdminPlaceholderPage } from '../pages/AdminPlaceholderPage.tsx';
+import { AdminProjectsPage } from '../pages/AdminProjectsPage.tsx';
+import { AdminBlogsPage } from '../pages/AdminBlogsPage.tsx';
+import { AdminExperiencePage } from '../pages/AdminExperiencePage.tsx';
+import { AdminTestimonialsPage } from '../pages/AdminTestimonialsPage.tsx';
+import { AdminServicesPage } from '../pages/AdminServicesPage.tsx';
+import { AdminMediaPage } from '../pages/AdminMediaPage.tsx';
+import { AdminMessagesPage } from '../pages/AdminMessagesPage.tsx';
 import { AdminLayout } from '../layouts/AdminLayout.tsx';
 import { ProtectedRoute } from '../components/ProtectedRoute.tsx';
 
@@ -26,13 +32,13 @@ export const AdminRoutes: React.FC = () => {
         <Route path="dashboard" element={<AdminDashboardPage />} />
         <Route path="about" element={<AdminAboutPage />} />
         <Route path="skills" element={<AdminSkillsPage />} />
-        <Route path="projects" element={<AdminPlaceholderPage />} />
-        <Route path="blogs" element={<AdminPlaceholderPage />} />
-        <Route path="experience" element={<AdminPlaceholderPage />} />
-        <Route path="testimonials" element={<AdminPlaceholderPage />} />
-        <Route path="services" element={<AdminPlaceholderPage />} />
-        <Route path="media" element={<AdminPlaceholderPage />} />
-        <Route path="messages" element={<AdminPlaceholderPage />} />
+        <Route path="projects" element={<AdminProjectsPage />} />
+        <Route path="blogs" element={<AdminBlogsPage />} />
+        <Route path="experience" element={<AdminExperiencePage />} />
+        <Route path="testimonials" element={<AdminTestimonialsPage />} />
+        <Route path="services" element={<AdminServicesPage />} />
+        <Route path="media" element={<AdminMediaPage />} />
+        <Route path="messages" element={<AdminMessagesPage />} />
         {/* Wildcard Fallback */}
         <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
       </Route>

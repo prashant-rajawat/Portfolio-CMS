@@ -51,4 +51,16 @@ export class UploadController {
       next(err);
     }
   }
+
+  /**
+   * Handles DELETE /api/upload/:id (Delete uploaded media and storage object)
+   */
+  public static async delete(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const result = await UploadService.delete(req.params.id);
+      sendSuccess(res, 'Media item deleted successfully', result, 200);
+    } catch (err) {
+      next(err);
+    }
+  }
 }

@@ -97,3 +97,15 @@ export interface MediaRecord {
   created_at: string | Date;
   updated_at: string | Date;
 }
+
+export interface MessageRecord {
+  id: string;
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+  is_read: boolean;
+  created_at: string | Date;
+  updated_at: string | Date;
+}
+

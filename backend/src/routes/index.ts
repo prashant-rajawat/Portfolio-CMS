@@ -9,6 +9,8 @@ import experienceRoutes from './experience.routes.ts';
 import testimonialsRoutes from './testimonials.routes.ts';
 import servicesRoutes from './services.routes.ts';
 import uploadRoutes from './upload.routes.ts';
+import contactRoutes from './contact.routes.ts';
+import messagesRoutes from './messages.routes.ts';
 
 const rootRouter = Router();
 
@@ -30,22 +32,8 @@ rootRouter.use('/services', servicesRoutes);
 // 4. Media upload route
 rootRouter.use('/upload', uploadRoutes);
 
-/**
- * Placeholder handler for reserved future routes (Contact).
- * Strictly avoids fake CRUD or mock data until future steps.
- */
-function createPlaceholderRoute(name: string): Router {
-  const router = Router();
-  router.all('*', (req: Request, res: Response) => {
-    res.status(501).json({
-      success: false,
-      message: `The ${name} API route (${req.method} ${req.originalUrl}) is reserved and will be implemented in upcoming steps.`,
-    });
-  });
-  return router;
-}
-
-// 5. Reserved API routes for future steps
-rootRouter.use('/contact', createPlaceholderRoute('Contact'));
+// 5. Contact & Messages routes
+rootRouter.use('/contact', contactRoutes);
+rootRouter.use('/messages', messagesRoutes);
 
 export default rootRouter;

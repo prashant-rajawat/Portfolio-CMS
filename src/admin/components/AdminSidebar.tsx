@@ -1,5 +1,5 @@
-import React from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
   User,
@@ -16,6 +16,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { useAuth } from '../auth/useAuth.ts';
+import { api } from '../lib/api.ts';
 
 interface AdminSidebarProps {
   isOpen: boolean;
@@ -27,6 +28,7 @@ interface NavItem {
   path: string;
   icon: React.ComponentType<{ className?: string }>;
   tag?: string;
+  getBadge?: (unreadCount: number) => React.ReactNode;
 }
 
 const navItems: NavItem[] = [
@@ -39,12 +41,46 @@ const navItems: NavItem[] = [
   { name: 'Testimonials', path: '/admin/testimonials', icon: Quote },
   { name: 'Services', path: '/admin/services', icon: Layers },
   { name: 'Media', path: '/admin/media', icon: Image },
-  { name: 'Messages', path: '/admin/messages', icon: Mail },
+  {
+    name: 'Messages',
+    path: '/admin/messages',
+    icon: Mail,
+    getBadge: (unread) =>
+      unread > 0 ? (
+        <span
+          id="sidebar-unread-messages-count"
+          className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 font-semibold"
+        >
+          {unread}
+        </span>
+      ) : null,
+  },
 ];
 
 export const AdminSidebar: React.FC<AdminSidebarProps> = ({ isOpen, onClose }) => {
   const { logout, user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [unreadCount, setUnreadCount] = useState<number>(0);
+
+  useEffect(() => {
+    let isMounted = true;
+    api
+      .get<{ unread_count?: number; unreadCount?: number }>('/api/messages')
+      .then((res) => {
+        if (isMounted) {
+          const count = res.unread_count ?? res.unreadCount ?? 0;
+          setUnreadCount(count);
+        }
+      })
+      .catch(() => {
+        // Silently catch to avoid any navigation disruption
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [location.pathname]);
 
   const handleLogout = () => {
     logout();

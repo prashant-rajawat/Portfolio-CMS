@@ -3,7 +3,7 @@ import { getDbPool } from '../db/index.ts';
 import { MediaRecord } from '../types/cms.ts';
 import { validateUploadedImage } from '../validators/upload.validator.ts';
 import { StorageService } from './storage.service.ts';
-import { DatabaseNotConfiguredError } from '../utils/errors.ts';
+import { DatabaseNotConfiguredError, NotFoundError } from '../utils/errors.ts';
 import { AppError } from '../middleware/errorHandler.ts';
 import { logger } from '../utils/logger.ts';
 
@@ -168,5 +168,42 @@ export class UploadService {
 
     const result = await pool.query(query);
     return result.rows as MediaRecord[];
+  }
+
+  /**
+   * Safely deletes a media item by ID:
+   * 1. Confirms existence and retrieves storage_path
+   * 2. Deletes storage object via StorageService
+   * 3. Deletes database record in PostgreSQL
+   */
+  public static async delete(id: string): Promise<{ id: string }> {
+    const pool = getDbPool();
+    if (!pool) {
+      throw new DatabaseNotConfiguredError();
+    }
+
+    // 1. Verify media exists
+    const media = await this.getById(id);
+    if (!media) {
+      throw new NotFoundError(`Media item with ID "${id}" was not found.`);
+    }
+
+    // 2. Delete storage file
+    try {
+      await StorageService.deleteFile(media.storage_path);
+    } catch (storageErr) {
+      logger.warn(`Storage deletion error for ${media.storage_path}, continuing database deletion:`, storageErr);
+    }
+
+    // 3. Delete database record
+    const deleteQuery = `DELETE FROM media WHERE id = $1 RETURNING id;`;
+    const result = await pool.query(deleteQuery, [id]);
+
+    if (result.rowCount === 0) {
+      throw new NotFoundError(`Media item with ID "${id}" was not found.`);
+    }
+
+    logger.info(`Deleted media item and storage file with ID: ${id}`);
+    return { id };
   }
 }

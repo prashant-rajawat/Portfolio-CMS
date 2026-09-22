@@ -14,14 +14,15 @@ import {
 } from 'lucide-react';
 
 interface HealthStatus {
-  status: string;
-  uptime: number;
-  environment: string;
-  database: {
-    status: string;
-    message: string;
-    driver: string;
-    connectionConfigured: boolean;
+  status?: string;
+  uptime?: number;
+  environment?: string;
+  database?: {
+    status?: string;
+    message?: string;
+    driver?: string;
+    connectionConfigured?: boolean;
+    latencyMs?: number;
   };
 }
 
@@ -39,7 +40,7 @@ export const PublicApiExplorer: React.FC = () => {
         throw new Error(`HTTP ${res.status}: ${res.statusText}`);
       }
       const data = await res.json();
-      setHealth(data);
+      setHealth(data?.data ?? data);
       setError(null);
     } catch (err: any) {
       setError(err?.message || 'Failed to reach API server');
@@ -156,14 +157,14 @@ export const PublicApiExplorer: React.FC = () => {
             </div>
             <div className="flex items-baseline space-x-2">
               <span className="text-2xl font-bold tracking-tight text-slate-100">
-                {health?.database.status === 'connected' ? 'CONNECTED' : 'STANDBY'}
+                {health?.database?.status === 'connected' ? 'CONNECTED' : 'STANDBY'}
               </span>
               <span className="text-xs text-slate-400 font-mono">
-                {health?.database.driver || 'pg / supabase'}
+                {health?.database?.driver || 'pg / supabase'}
               </span>
             </div>
-            <p className="text-xs text-slate-400 mt-2 truncate" title={health?.database.message}>
-              {health?.database.message || 'Database configured with automatic reconnect.'}
+            <p className="text-xs text-slate-400 mt-2 truncate" title={health?.database?.message}>
+              {health?.database?.message || 'Database configured with automatic reconnect.'}
             </p>
           </div>
 
