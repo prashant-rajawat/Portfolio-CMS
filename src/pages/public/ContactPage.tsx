@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Mail, Send, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { publicApi } from '../../lib/publicApi.ts';
 import { SectionHeading } from '../../components/public/SectionHeading.tsx';
@@ -15,6 +15,10 @@ export const ContactPage: React.FC = () => {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    document.title = 'Contact | Portfolio';
+  }, []);
 
   const validate = (): boolean => {
     const errors: Record<string, string> = {};
@@ -48,11 +52,11 @@ export const ContactPage: React.FC = () => {
       });
 
       if (res.success) {
-        setSuccessMessage(res.message || 'Thank you! Your message has been received.');
+        setSuccessMessage(res.message || 'Thanks for reaching out. Your message has been received.');
         setFormData({ name: '', email: '', subject: '', message: '' });
         setFieldErrors({});
       } else {
-        setErrorMessage(res.error || 'Failed to submit inquiry. Please try again.');
+        setErrorMessage(res.error || 'Your message could not be sent. Please try again.');
         if (Array.isArray(res.errors)) {
           const mapped: Record<string, string> = {};
           res.errors.forEach((err: any) => {
@@ -80,7 +84,10 @@ export const ContactPage: React.FC = () => {
       <div className="max-w-2xl mx-auto bg-slate-900/40 border border-slate-800 rounded-3xl p-6 sm:p-10 shadow-xl">
         {/* Success Alert */}
         {successMessage && (
-          <div className="mb-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 flex items-start gap-3">
+          <div
+            role="alert"
+            className="mb-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 flex items-start gap-3"
+          >
             <CheckCircle2 className="w-5 h-5 flex-shrink-0 mt-0.5 text-emerald-400" />
             <div>
               <p className="font-semibold text-sm">Message Transmitted Successfully</p>
@@ -91,7 +98,10 @@ export const ContactPage: React.FC = () => {
 
         {/* Error Alert */}
         {errorMessage && (
-          <div className="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 flex items-start gap-3">
+          <div
+            role="alert"
+            className="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 flex items-start gap-3"
+          >
             <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5 text-rose-400" />
             <div>
               <p className="font-semibold text-sm">Transmission Error</p>
@@ -112,13 +122,17 @@ export const ContactPage: React.FC = () => {
                 type="text"
                 placeholder="Jane Doe"
                 value={formData.name}
+                aria-invalid={fieldErrors.name ? 'true' : 'false'}
+                aria-describedby={fieldErrors.name ? 'contact-name-error' : undefined}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 className={`w-full px-4 py-2.5 rounded-xl bg-slate-800/80 border text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-cyan-500 ${
                   fieldErrors.name ? 'border-rose-500' : 'border-slate-700/80'
                 }`}
               />
               {fieldErrors.name && (
-                <p className="text-xs text-rose-400 mt-1.5">{fieldErrors.name}</p>
+                <p id="contact-name-error" className="text-xs text-rose-400 mt-1.5">
+                  {fieldErrors.name}
+                </p>
               )}
             </div>
 
@@ -131,13 +145,17 @@ export const ContactPage: React.FC = () => {
                 type="email"
                 placeholder="jane.doe@enterprise.com"
                 value={formData.email}
+                aria-invalid={fieldErrors.email ? 'true' : 'false'}
+                aria-describedby={fieldErrors.email ? 'contact-email-error' : undefined}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 className={`w-full px-4 py-2.5 rounded-xl bg-slate-800/80 border text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-cyan-500 ${
                   fieldErrors.email ? 'border-rose-500' : 'border-slate-700/80'
                 }`}
               />
               {fieldErrors.email && (
-                <p className="text-xs text-rose-400 mt-1.5">{fieldErrors.email}</p>
+                <p id="contact-email-error" className="text-xs text-rose-400 mt-1.5">
+                  {fieldErrors.email}
+                </p>
               )}
             </div>
           </div>
@@ -152,13 +170,17 @@ export const ContactPage: React.FC = () => {
               type="text"
               placeholder="e.g. Distributed System Architecture Consultation"
               value={formData.subject}
+              aria-invalid={fieldErrors.subject ? 'true' : 'false'}
+              aria-describedby={fieldErrors.subject ? 'contact-subject-error' : undefined}
               onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
               className={`w-full px-4 py-2.5 rounded-xl bg-slate-800/80 border text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-cyan-500 ${
                 fieldErrors.subject ? 'border-rose-500' : 'border-slate-700/80'
               }`}
             />
             {fieldErrors.subject && (
-              <p className="text-xs text-rose-400 mt-1.5">{fieldErrors.subject}</p>
+              <p id="contact-subject-error" className="text-xs text-rose-400 mt-1.5">
+                {fieldErrors.subject}
+              </p>
             )}
           </div>
 
@@ -172,13 +194,17 @@ export const ContactPage: React.FC = () => {
               rows={5}
               placeholder="Provide context regarding your project goals, timelines, and technical requirements..."
               value={formData.message}
+              aria-invalid={fieldErrors.message ? 'true' : 'false'}
+              aria-describedby={fieldErrors.message ? 'contact-message-error' : undefined}
               onChange={(e) => setFormData({ ...formData, message: e.target.value })}
               className={`w-full px-4 py-2.5 rounded-xl bg-slate-800/80 border text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-cyan-500 ${
                 fieldErrors.message ? 'border-rose-500' : 'border-slate-700/80'
               }`}
             />
             {fieldErrors.message && (
-              <p className="text-xs text-rose-400 mt-1.5">{fieldErrors.message}</p>
+              <p id="contact-message-error" className="text-xs text-rose-400 mt-1.5">
+                {fieldErrors.message}
+              </p>
             )}
           </div>
 

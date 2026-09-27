@@ -6,9 +6,11 @@ import { PublicLayout } from './layouts/PublicLayout.tsx';
 import { HomePage } from './pages/public/HomePage.tsx';
 import { AboutPage } from './pages/public/AboutPage.tsx';
 import { ProjectsPage } from './pages/public/ProjectsPage.tsx';
+import { ProjectDetailPage } from './pages/public/ProjectDetailPage.tsx';
 import { SkillsPage } from './pages/public/SkillsPage.tsx';
 import { ExperiencePage } from './pages/public/ExperiencePage.tsx';
 import { BlogPage } from './pages/public/BlogPage.tsx';
+import { BlogDetailPage } from './pages/public/BlogDetailPage.tsx';
 import { ContactPage } from './pages/public/ContactPage.tsx';
 import { PublicApiExplorer } from './pages/PublicApiExplorer.tsx';
 
@@ -22,9 +24,11 @@ export default function App() {
             <Route path="/" element={<HomePage />} />
             <Route path="/about" element={<AboutPage />} />
             <Route path="/projects" element={<ProjectsPage />} />
+            <Route path="/projects/:slug" element={<ProjectDetailPage />} />
             <Route path="/skills" element={<SkillsPage />} />
             <Route path="/experience" element={<ExperiencePage />} />
             <Route path="/blog" element={<BlogPage />} />
+            <Route path="/blog/:slug" element={<BlogDetailPage />} />
             <Route path="/contact" element={<ContactPage />} />
           </Route>
 

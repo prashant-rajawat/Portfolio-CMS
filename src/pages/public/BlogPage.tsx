@@ -28,6 +28,7 @@ export const BlogPage: React.FC = () => {
   };
 
   useEffect(() => {
+    document.title = 'Blog | Portfolio';
     fetchBlogs();
   }, []);
 

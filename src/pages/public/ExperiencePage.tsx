@@ -27,6 +27,7 @@ export const ExperiencePage: React.FC = () => {
   };
 
   useEffect(() => {
+    document.title = 'Experience | Portfolio';
     fetchExperience();
   }, []);
 

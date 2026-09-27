@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Calendar, User, ArrowRight, BookOpen } from 'lucide-react';
 import { BlogRecord } from '../../types.ts';
 
@@ -22,10 +23,18 @@ export const BlogCard: React.FC<BlogCardProps> = ({ blog }) => {
 
   const publishDate = formatDate(blog.published_at || blog.created_at);
 
+  // Calculate approximate reading time (avg 200 words per minute)
+  const wordCount = (blog.content || blog.excerpt || '').trim().split(/\s+/).filter(Boolean).length;
+  const readTimeMin = Math.max(1, Math.ceil(wordCount / 200));
+
   return (
     <article className="group rounded-xl border border-slate-800 bg-slate-900/40 hover:bg-slate-900/70 hover:border-slate-700 transition-all duration-300 flex flex-col overflow-hidden">
       {/* Featured Image */}
-      <div className="relative aspect-[16/9] w-full bg-slate-950 overflow-hidden border-b border-slate-800/80 flex items-center justify-center">
+      <Link
+        to={`/blog/${encodeURIComponent(blog.slug)}`}
+        className="relative aspect-[16/9] w-full bg-slate-950 overflow-hidden border-b border-slate-800/80 flex items-center justify-center block"
+        aria-label={`Read article: ${blog.title}`}
+      >
         {blog.featured_image_url && !imageError ? (
           <img
             src={blog.featured_image_url}
@@ -40,13 +49,13 @@ export const BlogCard: React.FC<BlogCardProps> = ({ blog }) => {
             <span className="text-xs font-mono text-slate-500">Architecture Article</span>
           </div>
         )}
-      </div>
+      </Link>
 
       {/* Article Body */}
       <div className="p-6 flex-1 flex flex-col justify-between">
         <div>
           {/* Metadata */}
-          <div className="flex items-center gap-3 text-xs font-mono text-slate-400 mb-3">
+          <div className="flex items-center gap-3 text-xs font-mono text-slate-400 mb-3 flex-wrap">
             {publishDate && (
               <span className="flex items-center gap-1">
                 <Calendar className="w-3.5 h-3.5" />
@@ -59,11 +68,14 @@ export const BlogCard: React.FC<BlogCardProps> = ({ blog }) => {
                 {blog.author_name}
               </span>
             )}
+            <span className="text-slate-500">&bull; {readTimeMin} min read</span>
           </div>
 
-          <h3 className="text-lg font-bold text-slate-100 group-hover:text-cyan-400 transition-colors line-clamp-2">
-            {blog.title}
-          </h3>
+          <Link to={`/blog/${encodeURIComponent(blog.slug)}`} className="block">
+            <h3 className="text-lg font-bold text-slate-100 group-hover:text-cyan-400 transition-colors line-clamp-2">
+              {blog.title}
+            </h3>
+          </Link>
 
           <p className="mt-2 text-sm text-slate-400 line-clamp-3 leading-relaxed">
             {blog.excerpt}
@@ -72,10 +84,13 @@ export const BlogCard: React.FC<BlogCardProps> = ({ blog }) => {
 
         {/* Read Post Link */}
         <div className="mt-6 pt-4 border-t border-slate-800/60">
-          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-cyan-400 group-hover:text-cyan-300 transition-colors">
+          <Link
+            to={`/blog/${encodeURIComponent(blog.slug)}`}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-cyan-400 group-hover:text-cyan-300 transition-colors"
+          >
             <span>Read Publication</span>
             <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-          </span>
+          </Link>
         </div>
       </div>
     </article>

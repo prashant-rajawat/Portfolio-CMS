@@ -29,6 +29,7 @@ export const ProjectsPage: React.FC = () => {
   };
 
   useEffect(() => {
+    document.title = 'Projects | Portfolio';
     fetchProjects();
   }, []);
 

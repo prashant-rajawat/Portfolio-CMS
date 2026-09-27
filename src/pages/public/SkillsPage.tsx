@@ -27,6 +27,7 @@ export const SkillsPage: React.FC = () => {
   };
 
   useEffect(() => {
+    document.title = 'Skills | Portfolio';
     fetchSkills();
   }, []);
 
