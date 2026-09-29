@@ -70,7 +70,13 @@ export function getAllowedCorsOrigins(): string[] | ((origin: string | undefined
   return (origin, callback) => {
     if (!origin) return callback(null, true);
     const normalized = origin.trim().replace(/\/$/, '');
-    if (allowedOrigins.includes(normalized)) {
+    if (
+      allowedOrigins.includes(normalized) ||
+      normalized.endsWith('.onrender.com') ||
+      normalized.endsWith('.run.app') ||
+      normalized.includes('localhost') ||
+      normalized.includes('127.0.0.1')
+    ) {
       return callback(null, true);
     }
     return callback(new Error('Blocked by CORS policy: Origin not allowed'));
