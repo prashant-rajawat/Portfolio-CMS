@@ -176,6 +176,13 @@ export function getOrCreateMemoryPool(): any {
       VALUES ('${adminId}', 'Administrator', 'admin@portfolio.local', '${adminPasswordHash}', 'admin');
     `);
 
+    const shivaPasswordHash = bcrypt.hashSync('shiva@830', 10);
+    const shivaAdminId = '6f6f6e63-6131-4ea1-8bc3-5f32a7c10a42';
+    db.public.none(`
+      INSERT INTO users (id, name, email, password_hash, role)
+      VALUES ('${shivaAdminId}', 'Shiva Rajawat', 'dreambattle311@gmail.com', '${shivaPasswordHash}', 'admin');
+    `);
+
     // 2. Seed About Profile
     const aboutId = crypto.randomUUID();
     db.public.none(`
