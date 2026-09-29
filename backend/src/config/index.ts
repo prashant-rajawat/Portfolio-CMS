@@ -2,6 +2,14 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+/**
+ * Sanitizes and strips whitespace or accidental wrapping quotes from environment values.
+ */
+function cleanEnvString(val: string | undefined, defaultValue: string = ''): string {
+  if (!val) return defaultValue;
+  return val.trim().replace(/^["']|["']$/g, '').trim();
+}
+
 export interface ServerConfig {
   port: number;
   nodeEnv: string;
@@ -16,51 +24,77 @@ export interface ServerConfig {
   isProduction: boolean;
 }
 
-const nodeEnv = process.env.NODE_ENV || 'development';
+const nodeEnv = cleanEnvString(process.env.NODE_ENV, 'development');
 const isProduction = nodeEnv === 'production';
+
+// In production on Render, default to the official deployed URL if FRONTEND_URL is unset
+const defaultProductionUrl = 'https://portfolio-cms-kmcy.onrender.com';
+const resolvedFrontendUrl = cleanEnvString(
+  process.env.FRONTEND_URL || process.env.RENDER_EXTERNAL_URL || process.env.APP_URL,
+  isProduction ? defaultProductionUrl : 'http://localhost:3000'
+);
 
 export const config: ServerConfig = {
   port: Number(process.env.PORT) || 3000,
   nodeEnv,
-  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
-  corsOrigin: process.env.CORS_ORIGIN || '',
-  databaseUrl: process.env.DATABASE_URL || '',
-  supabaseUrl: process.env.SUPABASE_URL || '',
-  supabasePublishableKey: process.env.SUPABASE_PUBLISHABLE_KEY || '',
-  supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
-  supabaseStorageBucket: process.env.SUPABASE_STORAGE_BUCKET || 'portfolio-media',
+  frontendUrl: resolvedFrontendUrl,
+  corsOrigin: cleanEnvString(process.env.CORS_ORIGIN, ''),
+  databaseUrl: cleanEnvString(process.env.DATABASE_URL, ''),
+  supabaseUrl: cleanEnvString(process.env.SUPABASE_URL, ''),
+  supabasePublishableKey: cleanEnvString(process.env.SUPABASE_PUBLISHABLE_KEY, ''),
+  supabaseServiceRoleKey: cleanEnvString(process.env.SUPABASE_SERVICE_ROLE_KEY, ''),
+  supabaseStorageBucket: cleanEnvString(process.env.SUPABASE_STORAGE_BUCKET, 'portfolio-media'),
   bodyLimit: '1mb',
   isProduction,
 };
 
 /**
  * Returns allowed origins for CORS.
- * In production, wildcards '*' are disallowed and origins must match the configured frontend URL or CORS_ORIGIN.
+ * In production, strictly allows configured Render domains, custom frontend URLs, and local development origins.
  */
 export function getAllowedCorsOrigins(): string[] | ((origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => void) {
   const prod = (process.env.NODE_ENV === 'production') || config.isProduction;
   if (!prod) {
     // In development, allow localhost, local dev origin, and any incoming browser origin safely
     return (origin, callback) => {
-      // Allow requests with no origin (like mobile apps or curl requests)
       if (!origin) return callback(null, true);
       return callback(null, true);
     };
   }
 
   // In production, strictly validate origin
-  const allowedOrigins: string[] = [];
-  const fUrl = process.env.FRONTEND_URL || config.frontendUrl;
+  const allowedOrigins: string[] = [
+    'https://portfolio-cms-kmcy.onrender.com',
+  ];
+
+  const fUrl = cleanEnvString(process.env.FRONTEND_URL || config.frontendUrl);
   if (fUrl) {
-    allowedOrigins.push(fUrl.trim().replace(/\/$/, ''));
+    const cleanUrl = fUrl.replace(/\/$/, '');
+    if (!allowedOrigins.includes(cleanUrl)) {
+      allowedOrigins.push(cleanUrl);
+    }
   }
-  if (process.env.APP_URL) {
-    allowedOrigins.push(process.env.APP_URL.trim().replace(/\/$/, ''));
+
+  const renderUrl = cleanEnvString(process.env.RENDER_EXTERNAL_URL);
+  if (renderUrl) {
+    const cleanUrl = renderUrl.replace(/\/$/, '');
+    if (!allowedOrigins.includes(cleanUrl)) {
+      allowedOrigins.push(cleanUrl);
+    }
   }
-  const corsEnv = process.env.CORS_ORIGIN || config.corsOrigin;
+
+  const appUrl = cleanEnvString(process.env.APP_URL);
+  if (appUrl) {
+    const cleanUrl = appUrl.replace(/\/$/, '');
+    if (!allowedOrigins.includes(cleanUrl)) {
+      allowedOrigins.push(cleanUrl);
+    }
+  }
+
+  const corsEnv = cleanEnvString(process.env.CORS_ORIGIN || config.corsOrigin);
   if (corsEnv) {
     corsEnv.split(',').forEach((orig) => {
-      const trimmed = orig.trim().replace(/\/$/, '');
+      const trimmed = cleanEnvString(orig).replace(/\/$/, '');
       if (trimmed && !allowedOrigins.includes(trimmed)) {
         allowedOrigins.push(trimmed);
       }
@@ -79,6 +113,6 @@ export function getAllowedCorsOrigins(): string[] | ((origin: string | undefined
     ) {
       return callback(null, true);
     }
-    return callback(new Error('Blocked by CORS policy: Origin not allowed'));
+    return callback(new Error(`Blocked by CORS policy: Origin ${origin} not allowed`));
   };
 }

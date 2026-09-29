@@ -9,6 +9,18 @@ let pool: pg.Pool | null = null;
 let supabaseClient: SupabaseClient | null = null;
 
 /**
+ * Sanitizes and normalizes the PostgreSQL connection string.
+ * Strips accidental wrapping quotes, leading/trailing whitespace, and validates basic scheme.
+ */
+export function sanitizeConnectionString(url: string): string {
+  let cleaned = (url || '').trim().replace(/^["']|["']$/g, '').trim();
+  if (cleaned.startsWith('postgres://')) {
+    cleaned = 'postgresql://' + cleaned.slice('postgres://'.length);
+  }
+  return cleaned;
+}
+
+/**
  * Initializes and returns the PostgreSQL connection pool (Supabase Postgres).
  */
 export function getDbPool(): pg.Pool | null {
@@ -16,16 +28,19 @@ export function getDbPool(): pg.Pool | null {
     return pool;
   }
 
-  if (!config.databaseUrl) {
+  const rawUrl = config.databaseUrl;
+  if (!rawUrl) {
     return null;
   }
 
+  const connectionString = sanitizeConnectionString(rawUrl);
+
   // Supabase requires SSL in production/cloud environments
-  const isLocalhost = config.databaseUrl.includes('localhost') || config.databaseUrl.includes('127.0.0.1');
+  const isLocalhost = connectionString.includes('localhost') || connectionString.includes('127.0.0.1');
   const sslConfig = isLocalhost ? false : { rejectUnauthorized: false };
 
   pool = new Pool({
-    connectionString: config.databaseUrl,
+    connectionString,
     ssl: sslConfig,
     max: 10,
     idleTimeoutMillis: 30000,
@@ -50,13 +65,16 @@ export function setDbPool(customPool: pg.Pool | null): void {
  * Returns the initialized Supabase JavaScript Client if SUPABASE_URL and key are provided.
  */
 export function getSupabaseClient(): SupabaseClient | null {
-  if (!config.supabaseUrl || !config.supabasePublishableKey) {
+  const sbUrl = (config.supabaseUrl || '').trim().replace(/^["']|["']$/g, '').trim();
+  const sbKey = (config.supabasePublishableKey || '').trim().replace(/^["']|["']$/g, '').trim();
+
+  if (!sbUrl || !sbKey) {
     return null;
   }
 
   if (!supabaseClient) {
     try {
-      supabaseClient = createClient(config.supabaseUrl, config.supabasePublishableKey, {
+      supabaseClient = createClient(sbUrl, sbKey, {
         auth: {
           persistSession: false,
         },
@@ -102,9 +120,9 @@ export async function testDatabaseConnection(): Promise<DbHealthResult> {
         latencyMs,
         testedAt,
       };
-    } catch (err) {
+    } catch (err: any) {
       const latencyMs = Date.now() - start;
-      logger.error('Database connection test failed:', err);
+      logger.error('Database connection test failed:', err?.message || err);
       return {
         status: 'disconnected',
         driver: 'pg',
