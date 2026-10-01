@@ -72,13 +72,13 @@ export const HomePage: React.FC = () => {
         publicApi.getBlogs(),
       ]);
 
-      setAbout(aboutData);
-      setSkills(skillsData.sort((a, b) => a.display_order - b.display_order));
-      setServices(servicesData.sort((a, b) => a.display_order - b.display_order));
-      setProjects(projectsData.sort((a, b) => a.display_order - b.display_order));
-      setExperience(experienceData.sort((a, b) => a.display_order - b.display_order));
-      setTestimonials(testimonialsData.sort((a, b) => a.display_order - b.display_order));
-      setBlogs(blogsData.filter((b) => b.published));
+      setAbout(aboutData || null);
+      setSkills((skillsData || []).slice().sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0)));
+      setServices((servicesData || []).slice().sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0)));
+      setProjects((projectsData || []).slice().sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0)));
+      setExperience((experienceData || []).slice().sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0)));
+      setTestimonials((testimonialsData || []).slice().sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0)));
+      setBlogs((blogsData || []).filter((b) => b && b.published));
     } catch (err: any) {
       console.error('Failed to load portfolio CMS content:', err);
       setError(err?.message || 'Unable to load portfolio content.');

@@ -49,19 +49,44 @@ async function startServer() {
   const hasBuiltFrontend = fs.existsSync(path.join(distPath, 'index.html'));
   const isProduction =
     config.nodeEnv === 'production' ||
-    process.env.NODE_ENV === 'production' ||
-    hasBuiltFrontend;
+    process.env.NODE_ENV === 'production';
 
-  // In local development without a pre-built dist folder, mount Vite middleware for live HMR & compilation
-  if (!isProduction && !hasBuiltFrontend) {
+  // In local/preview development, mount Vite middleware with HTML transformation
+  if (!isProduction) {
     logger.info('Initializing Vite SPA development middleware...');
     const vite = await createViteServer({
       server: { middlewareMode: true },
-      appType: 'spa',
+      appType: 'custom',
     });
     app.use(vite.middlewares);
+
+    // Development SPA HTML Fallback with Vite transformation
+    app.use('*', async (req: Request, res: Response, next: NextFunction) => {
+      // Never intercept backend API routes
+      if (req.originalUrl.startsWith('/api') || req.path.startsWith('/api')) {
+        return next();
+      }
+
+      // If a missing static file with an extension was requested, return 404 instead of index.html
+      if (/\.[a-zA-Z0-9]+$/.test(req.path)) {
+        return res.status(404).send('Asset not found');
+      }
+
+      try {
+        const indexPath = path.resolve(process.cwd(), 'index.html');
+        if (!fs.existsSync(indexPath)) {
+          return res.status(404).send('index.html not found');
+        }
+        let template = fs.readFileSync(indexPath, 'utf-8');
+        template = await vite.transformIndexHtml(req.originalUrl, template);
+        res.status(200).set({ 'Content-Type': 'text/html' }).end(template);
+      } catch (e: any) {
+        vite.ssrFixStacktrace(e);
+        next(e);
+      }
+    });
   } else {
-    // In production (or whenever built dist assets are available), serve the compiled React SPA
+    // In production (e.g. Render), serve the pre-built React SPA from dist directory
     logger.info(`Serving static production client from: ${distPath}`);
 
     // 1. Serve static assets (JS, CSS, SVGs, images, fonts, etc.)

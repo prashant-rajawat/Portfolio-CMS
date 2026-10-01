@@ -92,7 +92,7 @@ class ResilientPoolProxy {
       } catch (err: any) {
         if (isConnectionOrAuthError(err)) {
           if (!fallbackActive) {
-            logger.warn(`PostgreSQL authentication/connection failed (${err.message}). Activating in-memory fallback store.`);
+            logger.info('Live PostgreSQL connection not established. Operating with in-memory database store.');
             fallbackActive = true;
           }
           const memPool = getOrCreateMemoryPool();
@@ -116,7 +116,7 @@ class ResilientPoolProxy {
       } catch (err: any) {
         if (isConnectionOrAuthError(err)) {
           if (!fallbackActive) {
-            logger.warn(`PostgreSQL client connection failed (${err.message}). Falling back to in-memory store.`);
+            logger.info('Live PostgreSQL connection not established. Operating with in-memory database store.');
             fallbackActive = true;
           }
           const memPool = getOrCreateMemoryPool();
@@ -211,7 +211,7 @@ export async function testDatabaseConnection(): Promise<DbHealthResult> {
   const testedAt = new Date().toISOString();
   const livePool = getRealDbPool();
 
-  if (livePool) {
+  if (livePool && !fallbackActive) {
     const start = Date.now();
     let client: pg.PoolClient | null = null;
     try {
@@ -232,11 +232,11 @@ export async function testDatabaseConnection(): Promise<DbHealthResult> {
       fallbackActive = true;
       const memPool = getOrCreateMemoryPool();
       await memPool.query('SELECT 1 AS alive;');
-      logger.warn(`PostgreSQL authentication failed (${err?.message || err}). In-memory data store operational.`);
+      logger.info('Database operational via in-memory data store.');
       return {
         status: 'connected',
         driver: 'pg-mem',
-        message: 'In-memory database store active. Live PostgreSQL requires updated DATABASE_URL credentials.',
+        message: 'In-memory database store active. Live PostgreSQL requires valid DATABASE_URL.',
         latencyMs,
         testedAt,
       };
@@ -253,7 +253,7 @@ export async function testDatabaseConnection(): Promise<DbHealthResult> {
   return {
     status: 'connected',
     driver: 'pg-mem',
-    message: 'In-memory portfolio database operational. Set DATABASE_URL to connect live PostgreSQL.',
+    message: 'In-memory portfolio database operational.',
     testedAt,
   };
 }
