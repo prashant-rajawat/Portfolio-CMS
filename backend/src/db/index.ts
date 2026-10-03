@@ -211,7 +211,7 @@ export async function testDatabaseConnection(): Promise<DbHealthResult> {
   const testedAt = new Date().toISOString();
   const livePool = getRealDbPool();
 
-  if (livePool && !fallbackActive) {
+  if (livePool) {
     const start = Date.now();
     let client: pg.PoolClient | null = null;
     try {
