@@ -2,8 +2,23 @@ import { Request, Response, NextFunction } from 'express';
 import { logger } from '../utils/logger.ts';
 
 export function requestLogger(req: Request, res: Response, next: NextFunction): void {
-  const start = Date.now();
   const { method, originalUrl, ip } = req;
+
+  // Skip noisy development module and Vite asset requests
+  if (
+    originalUrl.startsWith('/@') ||
+    originalUrl.startsWith('/src/') ||
+    originalUrl.startsWith('/node_modules/') ||
+    originalUrl.endsWith('.tsx') ||
+    originalUrl.endsWith('.ts') ||
+    originalUrl.endsWith('.css') ||
+    originalUrl.endsWith('.map') ||
+    originalUrl.endsWith('.ico')
+  ) {
+    return next();
+  }
+
+  const start = Date.now();
 
   // Log incoming request
   logger.info(`Request received: ${method} ${originalUrl} from ${ip || 'unknown'}`);
