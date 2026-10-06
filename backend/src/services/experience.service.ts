@@ -11,7 +11,6 @@ export class ExperienceService {
   public static async getAll(): Promise<ExperienceRecord[]> {
     const pool = getDbPool();
     if (!pool) {
-      logger.warn('Database pool not available when fetching experience');
       return [];
     }
 
@@ -21,8 +20,12 @@ export class ExperienceService {
       ORDER BY display_order ASC, start_date DESC;
     `;
 
-    const result = await pool.query(query);
-    return result.rows as ExperienceRecord[];
+    try {
+      const result = await pool.query(query);
+      return result.rows as ExperienceRecord[];
+    } catch {
+      return [];
+    }
   }
 
   /**
@@ -39,9 +42,13 @@ export class ExperienceService {
       LIMIT 1;
     `;
 
-    const result = await pool.query(query, [id]);
-    if (result.rows.length === 0) return null;
-    return result.rows[0] as ExperienceRecord;
+    try {
+      const result = await pool.query(query, [id]);
+      if (result.rows.length === 0) return null;
+      return result.rows[0] as ExperienceRecord;
+    } catch {
+      return null;
+    }
   }
 
   /**

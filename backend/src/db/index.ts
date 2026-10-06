@@ -6,6 +6,8 @@ import { logger } from '../utils/logger.ts';
 const { Pool } = pg;
 
 let realPool: pg.Pool | null = null;
+let activeConnectionString: string | null = null;
+let isCustomPool = false;
 let supabaseClient: SupabaseClient | null = null;
 
 /**
@@ -20,20 +22,80 @@ export function sanitizeConnectionString(url: string): string {
   return cleaned;
 }
 
+export interface SafeDbDiagnostic {
+  hasDatabaseUrl: boolean;
+  host?: string;
+  port?: string;
+  database?: string;
+  sslEnabled?: boolean;
+  poolInitialized: boolean;
+}
+
+/**
+ * Returns safe diagnostic information about the database configuration.
+ * Never exposes credentials, passwords, or full connection strings.
+ */
+export function getSafeDbDiagnostics(): SafeDbDiagnostic {
+  const rawUrl = (process.env.DATABASE_URL || config.databaseUrl || '').trim();
+  if (!rawUrl) {
+    return {
+      hasDatabaseUrl: false,
+      poolInitialized: realPool !== null,
+    };
+  }
+
+  try {
+    const cleaned = sanitizeConnectionString(rawUrl);
+    const parsed = new URL(cleaned);
+    const isLocalhost = cleaned.includes('localhost') || cleaned.includes('127.0.0.1');
+    return {
+      hasDatabaseUrl: true,
+      host: parsed.hostname || undefined,
+      port: parsed.port || '5432',
+      database: parsed.pathname ? parsed.pathname.replace(/^\//, '') : undefined,
+      sslEnabled: !isLocalhost,
+      poolInitialized: realPool !== null,
+    };
+  } catch {
+    return {
+      hasDatabaseUrl: true,
+      poolInitialized: realPool !== null,
+    };
+  }
+}
+
 /**
  * Initializes and returns the primary PostgreSQL connection pool.
+ * Evaluates DATABASE_URL dynamically so changes take effect without stale pool caching.
  */
 export function getDbPool(): pg.Pool | null {
-  if (realPool) {
+  if (isCustomPool && realPool) {
     return realPool;
   }
 
-  const rawUrl = config.databaseUrl;
+  const rawUrl = (process.env.DATABASE_URL || config.databaseUrl || '').trim();
   if (!rawUrl) {
-    return null;
+    if (realPool && !isCustomPool) {
+      realPool.end().catch(() => {});
+      realPool = null;
+      activeConnectionString = null;
+    }
+    return realPool;
   }
 
   const connectionString = sanitizeConnectionString(rawUrl);
+
+  // If pool is already active with the exact same connection string, reuse it
+  if (realPool && !isCustomPool && activeConnectionString === connectionString) {
+    return realPool;
+  }
+
+  // If connection string has changed, close old pool and recreate
+  if (realPool && !isCustomPool) {
+    realPool.end().catch(() => {});
+    realPool = null;
+    activeConnectionString = null;
+  }
 
   const isLocalhost = connectionString.includes('localhost') || connectionString.includes('127.0.0.1');
   const sslConfig = isLocalhost ? false : { rejectUnauthorized: false };
@@ -44,11 +106,13 @@ export function getDbPool(): pg.Pool | null {
       ssl: sslConfig,
       max: 10,
       idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 4000,
+      connectionTimeoutMillis: 5000,
     });
+    activeConnectionString = connectionString;
+    isCustomPool = false;
 
     realPool.on('error', (err) => {
-      logger.warn('PostgreSQL pool idle client warning:', err.message);
+      logger.debug(`PostgreSQL pool client warning: ${err.message}`);
     });
 
     return realPool;
@@ -62,7 +126,15 @@ export function getDbPool(): pg.Pool | null {
  * Sets or overrides the database connection pool (used for testing).
  */
 export function setDbPool(customPool: pg.Pool | null): void {
-  realPool = customPool;
+  if (customPool) {
+    realPool = customPool;
+    isCustomPool = true;
+    activeConnectionString = null;
+  } else {
+    realPool = null;
+    isCustomPool = false;
+    activeConnectionString = null;
+  }
 }
 
 /**
@@ -98,6 +170,7 @@ export interface DbHealthResult {
   message: string;
   latencyMs?: number;
   testedAt: string;
+  diagnostics?: SafeDbDiagnostic;
 }
 
 /**
@@ -107,6 +180,7 @@ export interface DbHealthResult {
  */
 export async function testDatabaseConnection(): Promise<DbHealthResult> {
   const testedAt = new Date().toISOString();
+  const diagnostics = getSafeDbDiagnostics();
   const pool = getDbPool();
 
   if (pool) {
@@ -123,16 +197,18 @@ export async function testDatabaseConnection(): Promise<DbHealthResult> {
         message: 'PostgreSQL database connection verified and responsive',
         latencyMs,
         testedAt,
+        diagnostics,
       };
     } catch (err: any) {
       const latencyMs = Date.now() - start;
-      logger.warn(`PostgreSQL connection test failed: ${err.message}`);
+      logger.debug(`PostgreSQL connection test failed: ${err.message}`);
       return {
         status: 'disconnected',
         driver: 'pg',
         message: 'Unable to reach PostgreSQL database',
         latencyMs,
         testedAt,
+        diagnostics,
       };
     } finally {
       if (client) {
@@ -146,6 +222,7 @@ export async function testDatabaseConnection(): Promise<DbHealthResult> {
     driver: 'none',
     message: 'DATABASE_URL is not configured.',
     testedAt,
+    diagnostics,
   };
 }
 
@@ -161,5 +238,6 @@ export async function closeDatabaseConnections(): Promise<void> {
       logger.error('Error closing database pool:', err);
     }
     realPool = null;
+    activeConnectionString = null;
   }
 }

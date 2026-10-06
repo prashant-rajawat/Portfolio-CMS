@@ -35,17 +35,41 @@ const resolvedFrontendUrl = cleanEnvString(
 );
 
 export const config: ServerConfig = {
-  port: Number(process.env.PORT) || 3000,
-  nodeEnv,
-  frontendUrl: resolvedFrontendUrl,
-  corsOrigin: cleanEnvString(process.env.CORS_ORIGIN, ''),
-  databaseUrl: cleanEnvString(process.env.DATABASE_URL, ''),
-  supabaseUrl: cleanEnvString(process.env.SUPABASE_URL, ''),
-  supabasePublishableKey: cleanEnvString(process.env.SUPABASE_PUBLISHABLE_KEY, ''),
-  supabaseServiceRoleKey: cleanEnvString(process.env.SUPABASE_SERVICE_ROLE_KEY, ''),
-  supabaseStorageBucket: cleanEnvString(process.env.SUPABASE_STORAGE_BUCKET, 'portfolio-media'),
+  get port(): number {
+    return Number(process.env.PORT) || 3000;
+  },
+  get nodeEnv(): string {
+    return cleanEnvString(process.env.NODE_ENV, 'development');
+  },
+  get frontendUrl(): string {
+    const isProd = process.env.NODE_ENV === 'production';
+    return cleanEnvString(
+      process.env.FRONTEND_URL || process.env.RENDER_EXTERNAL_URL || process.env.APP_URL,
+      isProd ? defaultProductionUrl : 'http://localhost:3000'
+    );
+  },
+  get corsOrigin(): string {
+    return cleanEnvString(process.env.CORS_ORIGIN, '');
+  },
+  get databaseUrl(): string {
+    return cleanEnvString(process.env.DATABASE_URL, '');
+  },
+  get supabaseUrl(): string {
+    return cleanEnvString(process.env.SUPABASE_URL, '');
+  },
+  get supabasePublishableKey(): string {
+    return cleanEnvString(process.env.SUPABASE_PUBLISHABLE_KEY, '');
+  },
+  get supabaseServiceRoleKey(): string {
+    return cleanEnvString(process.env.SUPABASE_SERVICE_ROLE_KEY, '');
+  },
+  get supabaseStorageBucket(): string {
+    return cleanEnvString(process.env.SUPABASE_STORAGE_BUCKET, 'portfolio-media');
+  },
   bodyLimit: '1mb',
-  isProduction,
+  get isProduction(): boolean {
+    return (process.env.NODE_ENV === 'production') || isProduction;
+  },
 };
 
 /**

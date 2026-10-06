@@ -24,6 +24,7 @@ const testSuites = [
   { name: 'Step 16: Dedicated Public Pages', command: 'npm run test:public-pages' },
   { name: 'Step 17: Production Deployment Readiness', command: 'npm run test:deployment' },
   { name: 'Step 18: Live API & Production Endpoints', command: 'npm run test:live' },
+  { name: 'Step 19: Pool Consistency & Isolation', command: 'npm run test:consistency' },
 ];
 
 console.log('================================================================');

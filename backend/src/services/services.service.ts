@@ -11,7 +11,6 @@ export class ServicesService {
   public static async getAll(): Promise<ServiceRecord[]> {
     const pool = getDbPool();
     if (!pool) {
-      logger.warn('Database pool not available when fetching services');
       return [];
     }
 
@@ -21,8 +20,12 @@ export class ServicesService {
       ORDER BY display_order ASC, created_at ASC;
     `;
 
-    const result = await pool.query(query);
-    return result.rows as ServiceRecord[];
+    try {
+      const result = await pool.query(query);
+      return result.rows as ServiceRecord[];
+    } catch {
+      return [];
+    }
   }
 
   /**
@@ -39,9 +42,13 @@ export class ServicesService {
       LIMIT 1;
     `;
 
-    const result = await pool.query(query, [id]);
-    if (result.rows.length === 0) return null;
-    return result.rows[0] as ServiceRecord;
+    try {
+      const result = await pool.query(query, [id]);
+      if (result.rows.length === 0) return null;
+      return result.rows[0] as ServiceRecord;
+    } catch {
+      return null;
+    }
   }
 
   /**

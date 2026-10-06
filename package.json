@@ -28,6 +28,7 @@
     "test:public-pages": "tsx backend/src/scripts/testStep16PublicPages.ts",
     "test:deployment": "tsx backend/src/scripts/testStep17Deployment.ts",
     "test:live": "tsx backend/src/scripts/testStep18DeploymentLive.ts",
+    "test:consistency": "tsx backend/src/scripts/testProductionPoolConsistency.ts",
     "test:all": "tsx backend/src/scripts/runAllAudits.ts",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",

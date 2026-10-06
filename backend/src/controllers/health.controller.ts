@@ -48,6 +48,7 @@ export class HealthController {
         message: dbHealth.message,
         ...(dbHealth.latencyMs !== undefined ? { latencyMs: dbHealth.latencyMs } : {}),
         testedAt: dbHealth.testedAt,
+        ...(dbHealth.diagnostics ? { diagnostics: dbHealth.diagnostics } : {}),
       },
     });
   }

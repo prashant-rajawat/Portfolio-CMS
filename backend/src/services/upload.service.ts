@@ -138,9 +138,13 @@ export class UploadService {
       LIMIT 1;
     `;
 
-    const result = await pool.query(query, [id]);
-    if (result.rows.length === 0) return null;
-    return result.rows[0] as MediaRecord;
+    try {
+      const result = await pool.query(query, [id]);
+      if (result.rows.length === 0) return null;
+      return result.rows[0] as MediaRecord;
+    } catch {
+      return null;
+    }
   }
 
   /**
@@ -166,8 +170,12 @@ export class UploadService {
       ORDER BY created_at DESC;
     `;
 
-    const result = await pool.query(query);
-    return result.rows as MediaRecord[];
+    try {
+      const result = await pool.query(query);
+      return result.rows as MediaRecord[];
+    } catch {
+      return [];
+    }
   }
 
   /**

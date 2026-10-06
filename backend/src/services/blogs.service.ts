@@ -12,7 +12,6 @@ export class BlogsService {
   public static async getAll(): Promise<BlogRecord[]> {
     const pool = getDbPool();
     if (!pool) {
-      logger.warn('Database pool not available when fetching blogs');
       return [];
     }
 
@@ -25,8 +24,12 @@ export class BlogsService {
       ORDER BY b.created_at DESC;
     `;
 
-    const result = await pool.query(query);
-    return result.rows as BlogRecord[];
+    try {
+      const result = await pool.query(query);
+      return result.rows as BlogRecord[];
+    } catch {
+      return [];
+    }
   }
 
   /**
@@ -46,9 +49,13 @@ export class BlogsService {
       LIMIT 1;
     `;
 
-    const result = await pool.query(query, [id]);
-    if (result.rows.length === 0) return null;
-    return result.rows[0] as BlogRecord;
+    try {
+      const result = await pool.query(query, [id]);
+      if (result.rows.length === 0) return null;
+      return result.rows[0] as BlogRecord;
+    } catch {
+      return null;
+    }
   }
 
   /**
@@ -68,9 +75,13 @@ export class BlogsService {
       LIMIT 1;
     `;
 
-    const result = await pool.query(query, [slug]);
-    if (result.rows.length === 0) return null;
-    return result.rows[0] as BlogRecord;
+    try {
+      const result = await pool.query(query, [slug]);
+      if (result.rows.length === 0) return null;
+      return result.rows[0] as BlogRecord;
+    } catch {
+      return null;
+    }
   }
 
   /**

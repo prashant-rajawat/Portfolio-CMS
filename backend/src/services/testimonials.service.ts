@@ -11,7 +11,6 @@ export class TestimonialsService {
   public static async getAll(): Promise<TestimonialRecord[]> {
     const pool = getDbPool();
     if (!pool) {
-      logger.warn('Database pool not available when fetching testimonials');
       return [];
     }
 
@@ -21,8 +20,12 @@ export class TestimonialsService {
       ORDER BY display_order ASC, created_at DESC;
     `;
 
-    const result = await pool.query(query);
-    return result.rows as TestimonialRecord[];
+    try {
+      const result = await pool.query(query);
+      return result.rows as TestimonialRecord[];
+    } catch {
+      return [];
+    }
   }
 
   /**
@@ -39,9 +42,13 @@ export class TestimonialsService {
       LIMIT 1;
     `;
 
-    const result = await pool.query(query, [id]);
-    if (result.rows.length === 0) return null;
-    return result.rows[0] as TestimonialRecord;
+    try {
+      const result = await pool.query(query, [id]);
+      if (result.rows.length === 0) return null;
+      return result.rows[0] as TestimonialRecord;
+    } catch {
+      return null;
+    }
   }
 
   /**

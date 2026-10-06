@@ -11,7 +11,6 @@ export class ProjectsService {
   public static async getAll(): Promise<ProjectRecord[]> {
     const pool = getDbPool();
     if (!pool) {
-      logger.warn('Database pool not available when fetching projects');
       return [];
     }
 
@@ -21,8 +20,12 @@ export class ProjectsService {
       ORDER BY display_order ASC, created_at DESC;
     `;
 
-    const result = await pool.query(query);
-    return result.rows as ProjectRecord[];
+    try {
+      const result = await pool.query(query);
+      return result.rows as ProjectRecord[];
+    } catch {
+      return [];
+    }
   }
 
   /**
@@ -39,9 +42,13 @@ export class ProjectsService {
       LIMIT 1;
     `;
 
-    const result = await pool.query(query, [id]);
-    if (result.rows.length === 0) return null;
-    return result.rows[0] as ProjectRecord;
+    try {
+      const result = await pool.query(query, [id]);
+      if (result.rows.length === 0) return null;
+      return result.rows[0] as ProjectRecord;
+    } catch {
+      return null;
+    }
   }
 
   /**
@@ -58,9 +65,13 @@ export class ProjectsService {
       LIMIT 1;
     `;
 
-    const result = await pool.query(query, [slug]);
-    if (result.rows.length === 0) return null;
-    return result.rows[0] as ProjectRecord;
+    try {
+      const result = await pool.query(query, [slug]);
+      if (result.rows.length === 0) return null;
+      return result.rows[0] as ProjectRecord;
+    } catch {
+      return null;
+    }
   }
 
   /**

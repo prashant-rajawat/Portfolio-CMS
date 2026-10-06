@@ -23,7 +23,7 @@ export async function startBackendServer(): Promise<http.Server> {
       } else if (dbCheck.status === 'not_configured') {
         logger.info(`Database note: ${dbCheck.message}`);
       } else {
-        logger.warn(`Database connection warning: ${dbCheck.message}`);
+        logger.info(`Database status: ${dbCheck.message} (${dbCheck.status})`);
       }
     } catch (err) {
       logger.error('Unexpected error during startup database check:', err);

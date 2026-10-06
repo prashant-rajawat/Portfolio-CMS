@@ -132,12 +132,16 @@ export class AuthService {
       LIMIT 1;
     `;
 
-    const result = await pool.query(query, [email.trim()]);
-    if (result.rows.length === 0) {
+    try {
+      const result = await pool.query(query, [email.trim()]);
+      if (result.rows.length === 0) {
+        return null;
+      }
+
+      return result.rows[0] as UserRecord;
+    } catch {
       return null;
     }
-
-    return result.rows[0] as UserRecord;
   }
 
   /**
@@ -146,7 +150,6 @@ export class AuthService {
   public static async findUserById(id: string): Promise<UserRecord | null> {
     const pool = getDbPool();
     if (!pool) {
-      logger.warn('Database pool not available when finding user by id');
       return null;
     }
 
@@ -157,12 +160,16 @@ export class AuthService {
       LIMIT 1;
     `;
 
-    const result = await pool.query(query, [id]);
-    if (result.rows.length === 0) {
+    try {
+      const result = await pool.query(query, [id]);
+      if (result.rows.length === 0) {
+        return null;
+      }
+
+      return result.rows[0] as UserRecord;
+    } catch {
       return null;
     }
-
-    return result.rows[0] as UserRecord;
   }
 
   /**
