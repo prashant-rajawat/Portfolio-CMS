@@ -2,13 +2,11 @@ import pg from 'pg';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { config } from '../config/index.ts';
 import { logger } from '../utils/logger.ts';
-import { getOrCreateMemoryPool } from './memoryDb.ts';
 
 const { Pool } = pg;
 
 let realPool: pg.Pool | null = null;
 let supabaseClient: SupabaseClient | null = null;
-let fallbackActive = false;
 
 /**
  * Sanitizes and normalizes the PostgreSQL connection string.
@@ -23,26 +21,9 @@ export function sanitizeConnectionString(url: string): string {
 }
 
 /**
- * Checks if an error is a database connectivity/auth issue that should trigger in-memory fallback.
- */
-function isConnectionOrAuthError(err: any): boolean {
-  if (!err) return false;
-  const msg = (err.message || String(err)).toLowerCase();
-  return (
-    msg.includes('password authentication failed') ||
-    msg.includes('enotfound') ||
-    msg.includes('econnrefused') ||
-    msg.includes('etimedout') ||
-    msg.includes('connection terminated') ||
-    msg.includes('timeout') ||
-    msg.includes('no pg_hba.conf')
-  );
-}
-
-/**
  * Initializes and returns the primary PostgreSQL connection pool.
  */
-function getRealDbPool(): pg.Pool | null {
+export function getDbPool(): pg.Pool | null {
   if (realPool) {
     return realPool;
   }
@@ -78,93 +59,10 @@ function getRealDbPool(): pg.Pool | null {
 }
 
 /**
- * Resilient Database Pool Proxy
- * Automatically routes queries to live PostgreSQL when available and authenticated,
- * and seamlessly provides in-memory fallback if the connection or password authentication fails.
- */
-class ResilientPoolProxy {
-  async query(text: any, params?: any): Promise<any> {
-    const livePool = getRealDbPool();
-
-    if (livePool && !fallbackActive) {
-      try {
-        return await livePool.query(text, params);
-      } catch (err: any) {
-        if (isConnectionOrAuthError(err)) {
-          if (!fallbackActive) {
-            logger.info('Live PostgreSQL connection not established. Operating with in-memory database store.');
-            fallbackActive = true;
-          }
-          const memPool = getOrCreateMemoryPool();
-          return await memPool.query(text, params);
-        }
-        throw err;
-      }
-    }
-
-    const memPool = getOrCreateMemoryPool();
-    return await memPool.query(text, params);
-  }
-
-  async connect(): Promise<any> {
-    const livePool = getRealDbPool();
-
-    if (livePool && !fallbackActive) {
-      try {
-        const client = await livePool.connect();
-        return client;
-      } catch (err: any) {
-        if (isConnectionOrAuthError(err)) {
-          if (!fallbackActive) {
-            logger.info('Live PostgreSQL connection not established. Operating with in-memory database store.');
-            fallbackActive = true;
-          }
-          const memPool = getOrCreateMemoryPool();
-          return await memPool.connect();
-        }
-        throw err;
-      }
-    }
-
-    const memPool = getOrCreateMemoryPool();
-    return await memPool.connect();
-  }
-
-  on(event: 'acquire' | 'connect' | 'error' | 'release' | 'remove' | string, handler: (...args: any[]) => void): this {
-    const livePool = getRealDbPool();
-    if (livePool) {
-      (livePool as any).on(event, handler);
-    }
-    return this;
-  }
-
-  async end(): Promise<void> {
-    if (realPool) {
-      try {
-        await realPool.end();
-      } catch {
-        // ignore end error
-      }
-      realPool = null;
-    }
-  }
-}
-
-const resilientPool = new ResilientPoolProxy() as unknown as pg.Pool;
-
-/**
- * Initializes and returns the PostgreSQL connection pool (Resilient with in-memory fallback).
- */
-export function getDbPool(): pg.Pool | null {
-  return resilientPool;
-}
-
-/**
  * Sets or overrides the database connection pool (used for testing).
  */
 export function setDbPool(customPool: pg.Pool | null): void {
   realPool = customPool;
-  fallbackActive = false;
 }
 
 /**
@@ -196,7 +94,7 @@ export function getSupabaseClient(): SupabaseClient | null {
 
 export interface DbHealthResult {
   status: 'connected' | 'disconnected' | 'not_configured';
-  driver: 'pg' | 'pg-mem' | 'supabase-js' | 'none';
+  driver: 'pg' | 'supabase-js' | 'none';
   message: string;
   latencyMs?: number;
   testedAt: string;
@@ -204,21 +102,20 @@ export interface DbHealthResult {
 
 /**
  * Safe database connection test.
- * Runs a simple query (SELECT 1) with timeout.
+ * Runs a simple query (SELECT 1) with timeout against the real PostgreSQL pool.
  * Never exposes credentials, passwords, or connection strings.
  */
 export async function testDatabaseConnection(): Promise<DbHealthResult> {
   const testedAt = new Date().toISOString();
-  const livePool = getRealDbPool();
+  const pool = getDbPool();
 
-  if (livePool) {
+  if (pool) {
     const start = Date.now();
     let client: pg.PoolClient | null = null;
     try {
-      client = await livePool.connect();
+      client = await pool.connect();
       await client.query('SELECT 1 AS alive;');
       const latencyMs = Date.now() - start;
-      fallbackActive = false;
       logger.info(`PostgreSQL database connected successfully via pool (${latencyMs}ms)`);
       return {
         status: 'connected',
@@ -229,14 +126,11 @@ export async function testDatabaseConnection(): Promise<DbHealthResult> {
       };
     } catch (err: any) {
       const latencyMs = Date.now() - start;
-      fallbackActive = true;
-      const memPool = getOrCreateMemoryPool();
-      await memPool.query('SELECT 1 AS alive;');
-      logger.info('Database operational via in-memory data store.');
+      logger.warn(`PostgreSQL connection test failed: ${err.message}`);
       return {
-        status: 'connected',
-        driver: 'pg-mem',
-        message: 'In-memory database store active. Live PostgreSQL requires valid DATABASE_URL.',
+        status: 'disconnected',
+        driver: 'pg',
+        message: 'Unable to reach PostgreSQL database',
         latencyMs,
         testedAt,
       };
@@ -247,13 +141,10 @@ export async function testDatabaseConnection(): Promise<DbHealthResult> {
     }
   }
 
-  // Fallback to in-memory store
-  const memPool = getOrCreateMemoryPool();
-  await memPool.query('SELECT 1 AS alive;');
   return {
-    status: 'connected',
-    driver: 'pg-mem',
-    message: 'In-memory portfolio database operational.',
+    status: 'not_configured',
+    driver: 'none',
+    message: 'DATABASE_URL is not configured.',
     testedAt,
   };
 }

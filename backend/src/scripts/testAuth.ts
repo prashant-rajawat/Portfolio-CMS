@@ -1,4 +1,9 @@
+import fs from 'fs';
+import path from 'path';
+import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
+import { newDb } from 'pg-mem';
+import { setDbPool } from '../db/index.ts';
 import { AuthService } from '../services/auth.service.ts';
 import { authConfig } from '../config/auth.ts';
 import { loginSchema, refreshSchema } from '../validators/auth.validator.ts';
@@ -27,6 +32,30 @@ async function runAuthTests() {
   console.log('====================================================');
   console.log('Portfolio CMS - Step 3 Authentication Test Suite');
   console.log('====================================================\n');
+
+  // Setup in-memory pg-mem database with migrations for isolated auth testing
+  const db = newDb();
+  db.public.registerFunction({
+    name: 'gen_random_uuid',
+    impure: true,
+    implementation: () => crypto.randomUUID(),
+  });
+
+  const migrationsDir = path.resolve(process.cwd(), 'backend', 'migrations');
+  const files = fs.readdirSync(migrationsDir).filter((f) => f.endsWith('.sql')).sort();
+
+  for (const file of files) {
+    const rawSql = fs.readFileSync(path.join(migrationsDir, file), 'utf-8');
+    const sqlForPgMem = rawSql
+      .replace(/CREATE OR REPLACE FUNCTION[\s\S]*?LANGUAGE plpgsql;/gi, '')
+      .replace(/DROP TRIGGER IF EXISTS[\s\S]*?;/gi, '')
+      .replace(/CREATE TRIGGER[\s\S]*?EXECUTE FUNCTION[\s\S]*?;/gi, '');
+    db.public.none(sqlForPgMem);
+  }
+
+  const pgAdapter = db.adapters.createPg();
+  const testPool = new pgAdapter.Pool();
+  setDbPool(testPool as any);
 
   const testUser = {
     id: '11111111-2222-3333-4444-555555555555',
