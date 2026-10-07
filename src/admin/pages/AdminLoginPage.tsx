@@ -14,14 +14,19 @@ export const AdminLoginPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // If already authenticated as admin, redirect directly to dashboard
-  if (!authLoading && isAuthenticated && user?.role === 'admin') {
-    const from = (location.state as any)?.from?.pathname || '/admin/dashboard';
-    return <Navigate to={from} replace />;
-  }
+  // If already authenticated as admin, redirect to dashboard smoothly
+  useEffect(() => {
+    if (!authLoading && isAuthenticated && user && user.role === 'admin') {
+      const from = (location.state as any)?.from?.pathname;
+      const target = from && from !== '/admin/login' ? from : '/admin/dashboard';
+      navigate(target, { replace: true });
+    }
+  }, [authLoading, isAuthenticated, user, navigate, location]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return; // Prevent double submissions
+
     setErrorMessage(null);
 
     const trimmedEmail = email.trim();
@@ -37,11 +42,11 @@ export const AdminLoginPage: React.FC = () => {
     setIsSubmitting(true);
     try {
       await login({ email: trimmedEmail, password });
-      const from = (location.state as any)?.from?.pathname || '/admin/dashboard';
-      navigate(from, { replace: true });
+      const from = (location.state as any)?.from?.pathname;
+      const target = from && from !== '/admin/login' ? from : '/admin/dashboard';
+      navigate(target, { replace: true });
     } catch (err: any) {
       setErrorMessage(err.message || 'Invalid email or password.');
-    } finally {
       setIsSubmitting(false);
     }
   };

@@ -6,6 +6,7 @@ import { app } from './backend/src/app.ts';
 import { config } from './backend/src/config/index.ts';
 import { logger } from './backend/src/utils/logger.ts';
 import { testDatabaseConnection, closeDatabaseConnections } from './backend/src/db/index.ts';
+import { seedDemoData } from './backend/src/scripts/seedDemoData.ts';
 
 /**
  * Safely obtain current base directory regardless of whether running
@@ -138,6 +139,12 @@ async function startServer() {
       const dbCheck = await testDatabaseConnection();
       if (dbCheck.status === 'connected') {
         logger.info(`Database connected [${dbCheck.driver}]: ${dbCheck.message}`);
+        
+        // Optional safe demo seeding if explicitly enabled via environment variable
+        if (process.env.SEED_DEMO_DATA === 'true') {
+          logger.info('SEED_DEMO_DATA=true detected. Executing sample portfolio data seed...');
+          await seedDemoData();
+        }
       } else if (dbCheck.status === 'not_configured') {
         logger.info(`Database status: ${dbCheck.message}`);
       } else {

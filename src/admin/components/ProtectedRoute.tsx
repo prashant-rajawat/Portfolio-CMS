@@ -22,7 +22,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     );
   }
 
-  if (!isAuthenticated || user?.role !== 'admin') {
+  if (!isAuthenticated || !user || user.role !== 'admin') {
     return <Navigate to="/admin/login" state={{ from: location }} replace />;
   }
 

@@ -25,6 +25,8 @@ const testSuites = [
   { name: 'Step 17: Production Deployment Readiness', command: 'npm run test:deployment' },
   { name: 'Step 18: Live API & Production Endpoints', command: 'npm run test:live' },
   { name: 'Step 19: Pool Consistency & Isolation', command: 'npm run test:consistency' },
+  { name: 'Step 20: Comprehensive Admin & Bootstrap Auth', command: 'npm run test:bootstrap' },
+  { name: 'Step 21: Demo Portfolio Data Seed', command: 'npm run test:seed' },
 ];
 
 console.log('================================================================');

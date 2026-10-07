@@ -5,5 +5,6 @@ const router = Router();
 
 router.get('/', HealthController.getHealth);
 router.get('/db', HealthController.getDbHealth);
+router.get('/content', HealthController.getContentHealth);
 
 export default router;

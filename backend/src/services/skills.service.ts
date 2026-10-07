@@ -11,6 +11,7 @@ export class SkillsService {
   public static async getAll(): Promise<SkillRecord[]> {
     const pool = getDbPool();
     if (!pool) {
+      logger.warn('Database pool not available when fetching skills');
       return [];
     }
 
@@ -20,12 +21,8 @@ export class SkillsService {
       ORDER BY display_order ASC, created_at ASC;
     `;
 
-    try {
-      const result = await pool.query(query);
-      return result.rows as SkillRecord[];
-    } catch {
-      return [];
-    }
+    const result = await pool.query(query);
+    return result.rows as SkillRecord[];
   }
 
   /**
@@ -42,13 +39,9 @@ export class SkillsService {
       LIMIT 1;
     `;
 
-    try {
-      const result = await pool.query(query, [id]);
-      if (result.rows.length === 0) return null;
-      return result.rows[0] as SkillRecord;
-    } catch {
-      return null;
-    }
+    const result = await pool.query(query, [id]);
+    if (result.rows.length === 0) return null;
+    return result.rows[0] as SkillRecord;
   }
 
   /**

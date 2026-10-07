@@ -50,117 +50,72 @@ export const publicApi = {
    * Fetch portfolio bio and profile details.
    */
   async getAbout(): Promise<AboutRecord | null> {
-    try {
-      const data = await fetchPublicJson<AboutRecord>('/api/about');
-      return data || null;
-    } catch (err) {
-      console.warn('publicApi.getAbout warning:', err);
-      return null;
-    }
+    const data = await fetchPublicJson<AboutRecord>('/api/about');
+    return data || null;
   },
 
   /**
    * Fetch ordered technical skills.
    */
   async getSkills(): Promise<SkillRecord[]> {
-    try {
-      const data = await fetchPublicJson<SkillRecord[]>('/api/skills');
-      return Array.isArray(data) ? data : [];
-    } catch (err) {
-      console.warn('publicApi.getSkills warning:', err);
-      return [];
-    }
+    const data = await fetchPublicJson<SkillRecord[]>('/api/skills');
+    return Array.isArray(data) ? data : [];
   },
 
   /**
    * Fetch ordered projects list.
    */
   async getProjects(): Promise<ProjectRecord[]> {
-    try {
-      const data = await fetchPublicJson<ProjectRecord[]>('/api/projects');
-      return Array.isArray(data) ? data : [];
-    } catch (err) {
-      console.warn('publicApi.getProjects warning:', err);
-      return [];
-    }
+    const data = await fetchPublicJson<ProjectRecord[]>('/api/projects');
+    return Array.isArray(data) ? data : [];
   },
 
   /**
    * Fetch a single project by unique slug.
    */
   async getProjectBySlug(slug: string): Promise<ProjectRecord | null> {
-    try {
-      const data = await fetchPublicJson<ProjectRecord>(`/api/projects/${encodeURIComponent(slug)}`);
-      return data || null;
-    } catch (err) {
-      console.warn(`publicApi.getProjectBySlug("${slug}") warning:`, err);
-      return null;
-    }
+    const data = await fetchPublicJson<ProjectRecord>(`/api/projects/${encodeURIComponent(slug)}`);
+    return data || null;
   },
 
   /**
    * Fetch published blog posts.
    */
   async getBlogs(): Promise<BlogRecord[]> {
-    try {
-      const data = await fetchPublicJson<BlogRecord[]>('/api/blogs');
-      return Array.isArray(data) ? data : [];
-    } catch (err) {
-      console.warn('publicApi.getBlogs warning:', err);
-      return [];
-    }
+    const data = await fetchPublicJson<BlogRecord[]>('/api/blogs');
+    return Array.isArray(data) ? data : [];
   },
 
   /**
    * Fetch a single published blog by slug.
    */
   async getBlogBySlug(slug: string): Promise<BlogRecord | null> {
-    try {
-      const data = await fetchPublicJson<BlogRecord>(`/api/blogs/${encodeURIComponent(slug)}`);
-      return data || null;
-    } catch (err) {
-      console.warn(`publicApi.getBlogBySlug("${slug}") warning:`, err);
-      return null;
-    }
+    const data = await fetchPublicJson<BlogRecord>(`/api/blogs/${encodeURIComponent(slug)}`);
+    return data || null;
   },
 
   /**
    * Fetch career history and work experience.
    */
   async getExperience(): Promise<ExperienceRecord[]> {
-    try {
-      const data = await fetchPublicJson<ExperienceRecord[]>('/api/experience');
-      return Array.isArray(data) ? data : [];
-    } catch (err) {
-      console.warn('publicApi.getExperience warning:', err);
-      return [];
-    }
+    const data = await fetchPublicJson<ExperienceRecord[]>('/api/experience');
+    return Array.isArray(data) ? data : [];
   },
 
   /**
    * Fetch client recommendations and testimonials.
    */
   async getTestimonials(): Promise<TestimonialRecord[]> {
-    try {
-      const data = await fetchPublicJson<TestimonialRecord[]>('/api/testimonials');
-      return Array.isArray(data) ? data : [];
-    } catch (err) {
-      console.warn('publicApi.getTestimonials warning:', err);
-      return [];
-    }
+    const data = await fetchPublicJson<TestimonialRecord[]>('/api/testimonials');
+    return Array.isArray(data) ? data : [];
   },
 
   /**
    * Fetch service offerings and consulting capabilities.
    */
   async getServices(): Promise<ServiceRecord[]> {
-    try {
-      const data = await fetchPublicJson<ServiceRecord[]>('/api/services');
-      return Array.isArray(data) ? data : [];
-    } catch (err) {
-      console.warn('publicApi.getServices warning:', err);
-      return [];
-    }
+    const data = await fetchPublicJson<ServiceRecord[]>('/api/services');
+    return Array.isArray(data) ? data : [];
   },
 
   /**

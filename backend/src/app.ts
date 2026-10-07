@@ -10,6 +10,9 @@ import { sendError } from './utils/response.ts';
 export function createApp(): Express {
   const app = express();
 
+  // 0. Enable Trust Proxy for reverse proxies (Render, Cloud Run, Heroku)
+  app.set('trust proxy', 1);
+
   // 1. Basic Security Headers with Helmet
   app.use(
     helmet({

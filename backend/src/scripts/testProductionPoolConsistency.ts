@@ -73,7 +73,35 @@ async function runProductionConsistencyAudit() {
   }
   console.log('✓ PASS: AboutService.getAbout() successfully executed query against the exact same pool');
 
-  // 4. Verify no pg-mem in production bundle
+  // 4. Verify that PostgreSQL authentication errors are NOT silently swallowed
+  const failingMockPool: any = {
+    connect: async () => {
+      throw new Error('password authentication failed for user "postgres"');
+    },
+    query: async () => {
+      throw new Error('password authentication failed for user "postgres"');
+    },
+    on: () => {},
+    end: async () => {},
+  };
+
+  setDbPool(failingMockPool);
+
+  let errorThrown = false;
+  try {
+    await AboutService.getAbout();
+  } catch (err: any) {
+    if (err.message.includes('password authentication failed')) {
+      errorThrown = true;
+    }
+  }
+
+  if (!errorThrown) {
+    throw new Error('FAIL: PostgreSQL authentication error was silently swallowed by AboutService!');
+  }
+  console.log('✓ PASS: PostgreSQL authentication errors propagate visibly without silent suppression');
+
+  // 5. Verify no pg-mem in production bundle
   const distPath = path.resolve('dist/server.cjs');
   if (fs.existsSync(distPath)) {
     const distContent = fs.readFileSync(distPath, 'utf8');

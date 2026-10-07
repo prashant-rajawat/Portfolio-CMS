@@ -122,7 +122,7 @@ export class AuthService {
     const pool = getDbPool();
     if (!pool) {
       logger.warn('Database pool not available when finding user by email');
-      return null;
+      throw new AuthenticationError('Database service is unavailable. Please verify database connection configuration.', 503);
     }
 
     const query = `
@@ -132,24 +132,34 @@ export class AuthService {
       LIMIT 1;
     `;
 
-    try {
-      const result = await pool.query(query, [email.trim()]);
-      if (result.rows.length === 0) {
-        return null;
-      }
-
-      return result.rows[0] as UserRecord;
-    } catch {
+    const result = await pool.query(query, [email.trim()]);
+    if (result.rows.length === 0) {
       return null;
     }
+
+    return result.rows[0] as UserRecord;
   }
 
   /**
    * Finds a user by id using parameterized SQL query.
    */
   public static async findUserById(id: string): Promise<UserRecord | null> {
+    if (id === 'bootstrap-admin-id') {
+      const bootstrapEmail = authConfig.adminBootstrapEmail || process.env.ADMIN_BOOTSTRAP_EMAIL?.trim() || 'admin@portfolio.local';
+      return {
+        id: 'bootstrap-admin-id',
+        name: 'Bootstrap Administrator',
+        email: bootstrapEmail,
+        password_hash: '',
+        role: 'admin',
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+    }
+
     const pool = getDbPool();
     if (!pool) {
+      logger.warn('Database pool not available when finding user by id');
       return null;
     }
 
@@ -186,38 +196,90 @@ export class AuthService {
 
   /**
    * Authenticates user with email and password.
-   * Uses generic error messages to prevent account enumeration.
+   * Prioritizes PostgreSQL database authentication.
+   * If PostgreSQL is unavailable/fails to connect, uses secure environment bootstrap admin if configured.
    */
   public static async login(email: string, password: string): Promise<LoginResult> {
-    const user = await this.findUserByEmail(email);
-
-    // Generic error message for both non-existent user and wrong password
     const GENERIC_LOGIN_ERROR = 'Invalid email or password';
+    let user: UserRecord | null = null;
+    let databaseFailure = false;
 
-    if (!user) {
-      // Run dummy compare to mitigate timing attacks
+    // 1. Attempt standard PostgreSQL database authentication
+    try {
+      user = await this.findUserByEmail(email);
+    } catch {
+      databaseFailure = true;
+    }
+
+    // 2. If PostgreSQL database query succeeded, perform normal authentication
+    if (!databaseFailure) {
+      if (!user) {
+        // Run dummy compare to mitigate timing attacks
+        await bcrypt.compare(password, '$2a$10$abcdefghijklmnopqrstuvwxy01234567890123456789012345678');
+        throw new AuthenticationError(GENERIC_LOGIN_ERROR, 401);
+      }
+
+      const passwordValid = await this.comparePassword(password, user.password_hash);
+      if (!passwordValid) {
+        throw new AuthenticationError(GENERIC_LOGIN_ERROR, 401);
+      }
+
+      // Generate tokens
+      const accessToken = this.generateAccessToken({ id: user.id, role: user.role });
+      const refreshToken = this.generateRefreshToken({ id: user.id, role: user.role });
+
+      // Store refresh token hash in database if pool is available
+      await this.persistRefreshToken(user.id, refreshToken);
+
+      logger.info(`Successful login for user ID: ${user.id} (${user.role})`);
+
+      return {
+        accessToken,
+        refreshToken,
+        user: this.sanitizeUser(user),
+      };
+    }
+
+    // 3. Emergency Bootstrap Admin Path (only when PostgreSQL is unreachable or connection fails)
+    const bootstrapEmail = authConfig.adminBootstrapEmail || process.env.ADMIN_BOOTSTRAP_EMAIL?.trim();
+    const bootstrapHash = authConfig.adminBootstrapPasswordHash || process.env.ADMIN_BOOTSTRAP_PASSWORD_HASH?.trim();
+
+    if (!bootstrapEmail || !bootstrapHash) {
+      logger.warn('Database unavailable during login and no bootstrap admin configured.');
+      throw new AuthenticationError('Database service is unavailable. Please verify database connection configuration.', 503);
+    }
+
+    logger.warn('Database unavailable; bootstrap admin authentication attempted.');
+
+    const normalizedInputEmail = email.trim().toLowerCase();
+    const normalizedBootstrapEmail = bootstrapEmail.toLowerCase();
+
+    if (normalizedInputEmail !== normalizedBootstrapEmail) {
       await bcrypt.compare(password, '$2a$10$abcdefghijklmnopqrstuvwxy01234567890123456789012345678');
       throw new AuthenticationError(GENERIC_LOGIN_ERROR, 401);
     }
 
-    const passwordValid = await this.comparePassword(password, user.password_hash);
-    if (!passwordValid) {
+    const bootstrapPasswordValid = await this.comparePassword(password, bootstrapHash);
+    if (!bootstrapPasswordValid) {
       throw new AuthenticationError(GENERIC_LOGIN_ERROR, 401);
     }
 
-    // Generate tokens
-    const accessToken = this.generateAccessToken({ id: user.id, role: user.role });
-    const refreshToken = this.generateRefreshToken({ id: user.id, role: user.role });
+    const bootstrapUser: SafeUser = {
+      id: 'bootstrap-admin-id',
+      name: 'Bootstrap Administrator',
+      email: bootstrapEmail,
+      role: 'admin',
+    };
 
-    // Store refresh token hash in database if pool is available
-    await this.persistRefreshToken(user.id, refreshToken);
+    const accessToken = this.generateAccessToken({ id: bootstrapUser.id, role: bootstrapUser.role });
+    const refreshToken = this.generateRefreshToken({ id: bootstrapUser.id, role: bootstrapUser.role });
 
-    logger.info(`Successful login for user ID: ${user.id} (${user.role})`);
+    logger.info('Successful emergency bootstrap login for administrator');
 
     return {
       accessToken,
       refreshToken,
-      user: this.sanitizeUser(user),
+      user: bootstrapUser,
     };
   }
 
@@ -232,69 +294,98 @@ export class AuthService {
     // 1. Verify token signature and expiration
     const payload = this.verifyRefreshToken(rawRefreshToken);
 
+    // If this is an active bootstrap admin session
+    if (payload.id === 'bootstrap-admin-id') {
+      const bootstrapEmail = authConfig.adminBootstrapEmail || process.env.ADMIN_BOOTSTRAP_EMAIL?.trim() || 'admin@portfolio.local';
+      const bootstrapUser: SafeUser = {
+        id: 'bootstrap-admin-id',
+        name: 'Bootstrap Administrator',
+        email: bootstrapEmail,
+        role: 'admin',
+      };
+      const newAccessToken = this.generateAccessToken({ id: bootstrapUser.id, role: bootstrapUser.role });
+      const newRefreshToken = this.generateRefreshToken({ id: bootstrapUser.id, role: bootstrapUser.role });
+
+      return {
+        accessToken: newAccessToken,
+        refreshToken: newRefreshToken,
+        user: bootstrapUser,
+      };
+    }
+
     const pool = getDbPool();
     let userRecord: UserRecord | null = null;
 
     if (pool) {
-      const tokenHash = this.hashToken(rawRefreshToken);
+      try {
+        const tokenHash = this.hashToken(rawRefreshToken);
 
-      // Check if refresh_tokens table exists
-      const tableCheck = await pool.query(`
-        SELECT EXISTS (
-          SELECT 1 FROM information_schema.tables 
-          WHERE table_schema = 'public' 
-          AND table_name = 'refresh_tokens'
-        );
-      `);
+        // Check if refresh_tokens table exists
+        const tableCheck = await pool.query(`
+          SELECT EXISTS (
+            SELECT 1 FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+            AND table_name = 'refresh_tokens'
+          );
+        `);
 
-      if (tableCheck.rows[0].exists) {
-        // Query token record
-        const tokenQuery = `
-          SELECT id, user_id, expires_at, revoked_at
-          FROM refresh_tokens
-          WHERE token_hash = $1
-          LIMIT 1;
-        `;
-        const tokenResult = await pool.query(tokenQuery, [tokenHash]);
+        if (tableCheck.rows[0].exists) {
+          // Query token record
+          const tokenQuery = `
+            SELECT id, user_id, expires_at, revoked_at
+            FROM refresh_tokens
+            WHERE token_hash = $1
+            LIMIT 1;
+          `;
+          const tokenResult = await pool.query(tokenQuery, [tokenHash]);
 
-        if (tokenResult.rows.length === 0) {
-          throw new AuthenticationError('Invalid refresh token session', 401);
+          if (tokenResult.rows.length === 0) {
+            throw new AuthenticationError('Invalid refresh token session', 401);
+          }
+
+          const storedToken = tokenResult.rows[0];
+          if (storedToken.revoked_at) {
+            throw new AuthenticationError('Refresh token has already been revoked', 401);
+          }
+
+          if (new Date(storedToken.expires_at) < new Date()) {
+            throw new AuthenticationError('Refresh token has expired', 401);
+          }
+
+          // Revoke the current token (one-time use / rotation)
+          await pool.query('UPDATE refresh_tokens SET revoked_at = NOW() WHERE id = $1', [storedToken.id]);
         }
 
-        const storedToken = tokenResult.rows[0];
-        if (storedToken.revoked_at) {
-          throw new AuthenticationError('Refresh token has already been revoked', 401);
+        userRecord = await this.findUserById(payload.id);
+      } catch (err: any) {
+        if (err instanceof AuthenticationError) {
+          throw err;
         }
-
-        if (new Date(storedToken.expires_at) < new Date()) {
-          throw new AuthenticationError('Refresh token has expired', 401);
-        }
-
-        // Revoke the current token (one-time use / rotation)
-        await pool.query('UPDATE refresh_tokens SET revoked_at = NOW() WHERE id = $1', [storedToken.id]);
+        logger.debug('Database refresh token verification skipped due to pool error');
       }
-
-      userRecord = await this.findUserById(payload.id);
     }
 
     if (!userRecord) {
-      // If DB record not found or pool unavailable, verify from payload if in dev
-      userRecord = {
-        id: payload.id,
-        name: 'Administrator',
-        email: 'admin@portfolio.local',
-        password_hash: '',
-        role: payload.role,
-        created_at: new Date(),
-        updated_at: new Date(),
-      };
+      if (payload.role === 'admin') {
+        userRecord = {
+          id: payload.id,
+          name: 'Administrator',
+          email: 'admin@portfolio.local',
+          password_hash: '',
+          role: payload.role,
+          created_at: new Date(),
+          updated_at: new Date(),
+        };
+      } else {
+        throw new AuthenticationError('User account not found', 401);
+      }
     }
 
     // Issue new token pair
     const newAccessToken = this.generateAccessToken({ id: userRecord.id, role: userRecord.role });
     const newRefreshToken = this.generateRefreshToken({ id: userRecord.id, role: userRecord.role });
 
-    // Persist new refresh token hash
+    // Persist new refresh token hash if pool is active
     await this.persistRefreshToken(userRecord.id, newRefreshToken);
 
     return {

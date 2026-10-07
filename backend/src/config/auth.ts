@@ -9,6 +9,8 @@ export interface AuthConfig {
   jwtAccessExpiresIn: string;
   jwtRefreshExpiresIn: string;
   bcryptSaltRounds: number;
+  adminBootstrapEmail?: string;
+  adminBootstrapPasswordHash?: string;
 }
 
 function getValidatedAuthConfig(): AuthConfig {
@@ -46,6 +48,12 @@ function getValidatedAuthConfig(): AuthConfig {
     jwtAccessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '15m',
     jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
     bcryptSaltRounds: 10,
+    get adminBootstrapEmail(): string | undefined {
+      return process.env.ADMIN_BOOTSTRAP_EMAIL?.trim() || undefined;
+    },
+    get adminBootstrapPasswordHash(): string | undefined {
+      return process.env.ADMIN_BOOTSTRAP_PASSWORD_HASH?.trim() || undefined;
+    },
   };
 }
 

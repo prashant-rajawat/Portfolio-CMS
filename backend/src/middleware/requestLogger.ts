@@ -27,9 +27,9 @@ export function requestLogger(req: Request, res: Response, next: NextFunction): 
     const duration = Date.now() - start;
     const statusCode = res.statusCode;
 
-    if (statusCode >= 500) {
+    if (statusCode >= 500 && statusCode !== 503) {
       logger.error(`Response sent: ${method} ${originalUrl} ${statusCode} (${duration}ms)`);
-    } else if (statusCode >= 400) {
+    } else if (statusCode >= 400 || statusCode === 503) {
       logger.warn(`Response sent: ${method} ${originalUrl} ${statusCode} (${duration}ms)`);
     } else {
       logger.info(`Response sent: ${method} ${originalUrl} ${statusCode} (${duration}ms)`);

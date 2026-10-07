@@ -50,6 +50,7 @@ export class ContactService {
   public static async getAll(): Promise<MessagesListResult> {
     const pool = getDbPool();
     if (!pool) {
+      logger.warn('Database pool not available when fetching messages');
       return { messages: [], unreadCount: 0 };
     }
 
@@ -65,19 +66,15 @@ export class ContactService {
       WHERE is_read = false;
     `;
 
-    try {
-      const [messagesRes, unreadRes] = await Promise.all([
-        pool.query(messagesQuery),
-        pool.query(unreadQuery),
-      ]);
+    const [messagesRes, unreadRes] = await Promise.all([
+      pool.query(messagesQuery),
+      pool.query(unreadQuery),
+    ]);
 
-      const messages = messagesRes.rows as MessageRecord[];
-      const unreadCount = unreadRes.rows[0]?.unread_count ?? 0;
+    const messages = messagesRes.rows as MessageRecord[];
+    const unreadCount = unreadRes.rows[0]?.unread_count ?? 0;
 
-      return { messages, unreadCount };
-    } catch {
-      return { messages: [], unreadCount: 0 };
-    }
+    return { messages, unreadCount };
   }
 
   /**
@@ -94,13 +91,9 @@ export class ContactService {
       LIMIT 1;
     `;
 
-    try {
-      const result = await pool.query(query, [id]);
-      if (result.rows.length === 0) return null;
-      return result.rows[0] as MessageRecord;
-    } catch {
-      return null;
-    }
+    const result = await pool.query(query, [id]);
+    if (result.rows.length === 0) return null;
+    return result.rows[0] as MessageRecord;
   }
 
   /**
@@ -167,11 +160,7 @@ export class ContactService {
       WHERE is_read = false;
     `;
 
-    try {
-      const result = await pool.query(query);
-      return result.rows[0]?.count ?? 0;
-    } catch {
-      return 0;
-    }
+    const result = await pool.query(query);
+    return result.rows[0]?.count ?? 0;
   }
 }

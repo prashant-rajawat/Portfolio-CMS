@@ -22,6 +22,21 @@ export function errorHandler(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _next: NextFunction
 ): void {
+  // Database connection or authentication failures
+  const isDbError =
+    err.message &&
+    (err.message.includes('password authentication failed') ||
+      err.message.includes('ECONNREFUSED') ||
+      err.message.includes('ETIMEDOUT') ||
+      err.message.includes('connection timeout') ||
+      err.message.includes('Database service is unavailable'));
+
+  if (isDbError) {
+    logger.debug(`Database service unavailable during ${req.method} ${req.originalUrl}`);
+    sendError(res, 'Database service is currently unavailable. Please verify database connection configuration.', 503);
+    return;
+  }
+
   logger.error(`Error occurred during ${req.method} ${req.originalUrl}:`, err);
 
   // Syntax error from body-parser (e.g. malformed JSON)

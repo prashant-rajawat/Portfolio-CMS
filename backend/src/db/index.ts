@@ -7,6 +7,7 @@ const { Pool } = pg;
 
 let realPool: pg.Pool | null = null;
 let activeConnectionString: string | null = null;
+let activePoolId: string | null = null;
 let isCustomPool = false;
 let supabaseClient: SupabaseClient | null = null;
 
@@ -27,8 +28,10 @@ export interface SafeDbDiagnostic {
   host?: string;
   port?: string;
   database?: string;
+  username?: string;
   sslEnabled?: boolean;
   poolInitialized: boolean;
+  poolInstanceId?: string;
 }
 
 /**
@@ -41,6 +44,7 @@ export function getSafeDbDiagnostics(): SafeDbDiagnostic {
     return {
       hasDatabaseUrl: false,
       poolInitialized: realPool !== null,
+      poolInstanceId: activePoolId || undefined,
     };
   }
 
@@ -53,13 +57,16 @@ export function getSafeDbDiagnostics(): SafeDbDiagnostic {
       host: parsed.hostname || undefined,
       port: parsed.port || '5432',
       database: parsed.pathname ? parsed.pathname.replace(/^\//, '') : undefined,
+      username: parsed.username || undefined,
       sslEnabled: !isLocalhost,
       poolInitialized: realPool !== null,
+      poolInstanceId: activePoolId || undefined,
     };
   } catch {
     return {
       hasDatabaseUrl: true,
       poolInitialized: realPool !== null,
+      poolInstanceId: activePoolId || undefined,
     };
   }
 }
@@ -95,6 +102,7 @@ export function getDbPool(): pg.Pool | null {
     realPool.end().catch(() => {});
     realPool = null;
     activeConnectionString = null;
+    activePoolId = null;
   }
 
   const isLocalhost = connectionString.includes('localhost') || connectionString.includes('127.0.0.1');
@@ -109,15 +117,17 @@ export function getDbPool(): pg.Pool | null {
       connectionTimeoutMillis: 5000,
     });
     activeConnectionString = connectionString;
+    activePoolId = `pool_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 7)}`;
     isCustomPool = false;
 
-    realPool.on('error', (err) => {
-      logger.debug(`PostgreSQL pool client warning: ${err.message}`);
+    realPool.on('error', () => {
+      logger.debug('PostgreSQL pool client connection warning');
     });
 
     return realPool;
   } catch (err) {
     logger.error('Failed to instantiate PostgreSQL Pool:', err);
+    activePoolId = null;
     return null;
   }
 }
@@ -130,10 +140,12 @@ export function setDbPool(customPool: pg.Pool | null): void {
     realPool = customPool;
     isCustomPool = true;
     activeConnectionString = null;
+    activePoolId = `custom_pool_${Date.now().toString(36)}`;
   } else {
     realPool = null;
     isCustomPool = false;
     activeConnectionString = null;
+    activePoolId = null;
   }
 }
 
@@ -199,9 +211,9 @@ export async function testDatabaseConnection(): Promise<DbHealthResult> {
         testedAt,
         diagnostics,
       };
-    } catch (err: any) {
+    } catch {
       const latencyMs = Date.now() - start;
-      logger.debug(`PostgreSQL connection test failed: ${err.message}`);
+      logger.debug('PostgreSQL connection test: database unreachable or authentication failed');
       return {
         status: 'disconnected',
         driver: 'pg',
@@ -239,5 +251,6 @@ export async function closeDatabaseConnections(): Promise<void> {
     }
     realPool = null;
     activeConnectionString = null;
+    activePoolId = null;
   }
 }

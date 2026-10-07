@@ -12,6 +12,7 @@ export class AboutService {
   public static async getAbout(): Promise<AboutRecord | null> {
     const pool = getDbPool();
     if (!pool) {
+      logger.warn('Database pool not available when fetching about record');
       return null;
     }
 
@@ -22,16 +23,12 @@ export class AboutService {
       LIMIT 1;
     `;
 
-    try {
-      const result = await pool.query(query);
-      if (result.rows.length === 0) {
-        return null;
-      }
-
-      return result.rows[0] as AboutRecord;
-    } catch {
+    const result = await pool.query(query);
+    if (result.rows.length === 0) {
       return null;
     }
+
+    return result.rows[0] as AboutRecord;
   }
 
   /**

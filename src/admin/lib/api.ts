@@ -117,8 +117,8 @@ export async function apiRequest<T = any>(
       headers,
     });
 
-    // Handle 401 Unauthorized with token refresh if not already retried
-    if (response.status === 401 && !options._retry && !options.skipAuth) {
+    // Handle 401 Unauthorized with token refresh if not already retried and not an auth endpoint
+    if (response.status === 401 && !options._retry && !options.skipAuth && !endpoint.includes('/api/auth/')) {
       if (isRefreshing) {
         // Queue the request until refresh completes
         return new Promise<ApiResponse<T>>((resolve) => {
