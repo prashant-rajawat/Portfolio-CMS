@@ -34,6 +34,22 @@ export async function seedDemoData(): Promise<SeedResult> {
   try {
     client = await pool.connect();
 
+    // 0. Ensure admin user dreambattle311@gmail.com exists
+    try {
+      const adminCheck = await client.query('SELECT id FROM users WHERE email = $1;', ['dreambattle311@gmail.com']);
+      if (adminCheck.rows.length === 0) {
+        const bcrypt = await import('bcryptjs');
+        const hash = await bcrypt.hash('shiva@830', 10);
+        await client.query(
+          `INSERT INTO users (name, email, password_hash, role) VALUES ($1, $2, $3, $4);`,
+          ['Administrator', 'dreambattle311@gmail.com', hash, 'admin']
+        );
+        insertedCount++;
+      }
+    } catch {
+      // Ignore if users table doesn't exist yet
+    }
+
     // 1. Seed About Profile
     const aboutCheck = await client.query('SELECT id FROM about LIMIT 1;');
     if (aboutCheck.rows.length === 0) {

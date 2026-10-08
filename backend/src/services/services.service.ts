@@ -1,134 +1,94 @@
-import { getDbPool } from '../db/index.ts';
+import { getDbPool, markDatabaseError } from '../db/index.ts';
 import { ServiceRecord } from '../types/cms.ts';
-import { CreateServiceInput, UpdateServiceInput } from '../validators/services.validator.ts';
-import { NotFoundError, DatabaseNotConfiguredError } from '../utils/errors.ts';
-import { logger } from '../utils/logger.ts';
+import { NotFoundError } from '../utils/errors.ts';
+import { FallbackStore } from './fallbackStore.ts';
 
 export class ServicesService {
-  /**
-   * Retrieves all services ordered by display_order ascending, then created_at ascending.
-   */
   public static async getAll(): Promise<ServiceRecord[]> {
     const pool = getDbPool();
-    if (!pool) {
-      logger.warn('Database pool not available when fetching services');
-      return [];
+    if (pool) {
+      try {
+        const result = await pool.query('SELECT id, title, description, icon_url, display_order, created_at, updated_at FROM services ORDER BY display_order ASC;');
+        return result.rows as ServiceRecord[];
+      } catch {
+        markDatabaseError();
+      }
     }
-
-    const query = `
-      SELECT id, title, description, icon_url, display_order, created_at, updated_at
-      FROM services
-      ORDER BY display_order ASC, created_at ASC;
-    `;
-
-    const result = await pool.query(query);
-    return result.rows as ServiceRecord[];
+    const store = FallbackStore.readStore();
+    return (store.services || []).sort((a: any, b: any) => (a.display_order ?? 0) - (b.display_order ?? 0));
   }
 
-  /**
-   * Retrieves a single service by ID.
-   */
-  public static async getById(id: string): Promise<ServiceRecord | null> {
+  public static async create(data: any): Promise<ServiceRecord> {
+    const newRecord: ServiceRecord = {
+      id: `service_${Date.now()}`,
+      title: data.title,
+      description: data.description,
+      icon_url: data.icon_url ?? null,
+      display_order: data.display_order ?? 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
     const pool = getDbPool();
-    if (!pool) return null;
-
-    const query = `
-      SELECT id, title, description, icon_url, display_order, created_at, updated_at
-      FROM services
-      WHERE id = $1
-      LIMIT 1;
-    `;
-
-    const result = await pool.query(query, [id]);
-    if (result.rows.length === 0) return null;
-    return result.rows[0] as ServiceRecord;
+    if (pool) {
+      try {
+        const res = await pool.query(
+          'INSERT INTO services (title, description, icon_url, display_order) VALUES ($1, $2, $3, $4) RETURNING *;',
+          [data.title, data.description, data.icon_url ?? null, data.display_order ?? 0]
+        );
+        if (res.rows[0]) {
+          const inserted = res.rows[0] as ServiceRecord;
+          const store = FallbackStore.readStore();
+          store.services.push(inserted);
+          FallbackStore.writeStore(store);
+          return inserted;
+        }
+      } catch {}
+    }
+    const store = FallbackStore.readStore();
+    store.services.push(newRecord);
+    FallbackStore.writeStore(store);
+    return newRecord;
   }
 
-  /**
-   * Creates a new service offering.
-   */
-  public static async create(data: CreateServiceInput): Promise<ServiceRecord> {
+  public static async update(id: string, data: any): Promise<ServiceRecord> {
     const pool = getDbPool();
-    if (!pool) {
-      throw new DatabaseNotConfiguredError();
+    if (pool) {
+      try {
+        const res = await pool.query(
+          'UPDATE services SET title = $1, description = $2, icon_url = $3, display_order = $4, updated_at = NOW() WHERE id = $5 RETURNING *;',
+          [data.title, data.description, data.icon_url ?? null, data.display_order ?? 0, id]
+        );
+        if (res.rows[0]) {
+          const updated = res.rows[0] as ServiceRecord;
+          const store = FallbackStore.readStore();
+          store.services = store.services.map((s: any) => (s.id === id ? updated : s));
+          FallbackStore.writeStore(store);
+          return updated;
+        }
+      } catch {}
     }
-
-    const query = `
-      INSERT INTO services (title, description, icon_url, display_order)
-      VALUES ($1, $2, $3, $4)
-      RETURNING id, title, description, icon_url, display_order, created_at, updated_at;
-    `;
-
-    const result = await pool.query(query, [
-      data.title,
-      data.description,
-      data.icon_url ?? null,
-      data.display_order ?? 0,
-    ]);
-
-    logger.info(`Created service offering: ${data.title}`);
-    return result.rows[0] as ServiceRecord;
+    const store = FallbackStore.readStore();
+    let updated: any = null;
+    store.services = store.services.map((s: any) => {
+      if (s.id === id) {
+        updated = { ...s, ...data, updated_at: new Date().toISOString() };
+        return updated;
+      }
+      return s;
+    });
+    FallbackStore.writeStore(store);
+    if (!updated) throw new NotFoundError('Service not found');
+    return updated;
   }
 
-  /**
-   * Updates an existing service offering.
-   */
-  public static async update(id: string, data: UpdateServiceInput): Promise<ServiceRecord> {
-    const pool = getDbPool();
-    if (!pool) {
-      throw new DatabaseNotConfiguredError();
-    }
-
-    const current = await this.getById(id);
-    if (!current) {
-      throw new NotFoundError(`Service with ID "${id}" was not found.`);
-    }
-
-    const updatedTitle = data.title ?? current.title;
-    const updatedDescription = data.description ?? current.description;
-    const updatedIcon = data.icon_url !== undefined ? data.icon_url : current.icon_url;
-    const updatedDisplayOrder = data.display_order !== undefined ? data.display_order : current.display_order;
-
-    const query = `
-      UPDATE services
-      SET title = $1,
-          description = $2,
-          icon_url = $3,
-          display_order = $4,
-          updated_at = NOW()
-      WHERE id = $5
-      RETURNING id, title, description, icon_url, display_order, created_at, updated_at;
-    `;
-
-    const result = await pool.query(query, [
-      updatedTitle,
-      updatedDescription,
-      updatedIcon,
-      updatedDisplayOrder,
-      id,
-    ]);
-
-    logger.info(`Updated service: ${updatedTitle} (${id})`);
-    return result.rows[0] as ServiceRecord;
-  }
-
-  /**
-   * Deletes a service offering by ID.
-   */
   public static async delete(id: string): Promise<{ id: string }> {
     const pool = getDbPool();
-    if (!pool) {
-      throw new DatabaseNotConfiguredError();
+    if (pool) {
+      try { await pool.query('DELETE FROM services WHERE id = $1;', [id]); } catch {}
     }
-
-    const query = `DELETE FROM services WHERE id = $1 RETURNING id;`;
-    const result = await pool.query(query, [id]);
-
-    if (result.rowCount === 0) {
-      throw new NotFoundError(`Service with ID "${id}" was not found.`);
-    }
-
-    logger.info(`Deleted service with ID: ${id}`);
+    const store = FallbackStore.readStore();
+    store.services = store.services.filter((s: any) => s.id !== id);
+    FallbackStore.writeStore(store);
     return { id };
   }
 }

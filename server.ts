@@ -148,7 +148,7 @@ async function startServer() {
       } else if (dbCheck.status === 'not_configured') {
         logger.info(`Database status: ${dbCheck.message}`);
       } else {
-        logger.warn(`Database status: ${dbCheck.message}`);
+        logger.info(`Database status: ${dbCheck.message}`);
       }
     } catch (err) {
       logger.error('Unexpected error during startup database check:', err);

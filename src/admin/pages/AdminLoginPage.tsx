@@ -4,7 +4,7 @@ import { useAuth } from '../auth/useAuth.ts';
 import { ShieldCheck, Mail, Lock, Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react';
 
 export const AdminLoginPage: React.FC = () => {
-  const { login, isAuthenticated, isLoading: authLoading, user } = useAuth();
+  const { login, logout, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -14,14 +14,10 @@ export const AdminLoginPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // If already authenticated as admin, redirect to dashboard smoothly
+  // Reset any prior session when visiting the login page so the email/password form is always presented
   useEffect(() => {
-    if (!authLoading && isAuthenticated && user && user.role === 'admin') {
-      const from = (location.state as any)?.from?.pathname;
-      const target = from && from !== '/admin/login' ? from : '/admin/dashboard';
-      navigate(target, { replace: true });
-    }
-  }, [authLoading, isAuthenticated, user, navigate, location]);
+    logout();
+  }, [logout]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

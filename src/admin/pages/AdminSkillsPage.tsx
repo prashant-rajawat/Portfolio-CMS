@@ -343,8 +343,8 @@ export const AdminSkillsPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60">
-                {skills.map((skill) => (
-                  <tr key={skill.id} className="hover:bg-slate-800/30 transition">
+                {skills.map((skill, index) => (
+                  <tr key={skill.id || index} className="hover:bg-slate-800/30 transition">
                     <td className="py-3 px-4 text-center font-mono text-slate-500 text-[11px]">
                       {skill.display_order ?? 0}
                     </td>
@@ -431,9 +431,9 @@ export const AdminSkillsPage: React.FC = () => {
 
           {/* Mobile Card List View (Visible on small screens) */}
           <div className="grid grid-cols-1 gap-3 md:hidden">
-            {skills.map((skill) => (
+            {skills.map((skill, index) => (
               <div
-                key={skill.id}
+                key={skill.id || index}
                 className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3 shadow-sm"
               >
                 <div className="flex items-start justify-between">
@@ -536,7 +536,7 @@ export const AdminSkillsPage: React.FC = () => {
             <input
               id="skill-name"
               type="text"
-              value={formData.name}
+              value={formData.name || ''}
               onChange={(e) => {
                 setFormData({ ...formData, name: e.target.value });
                 if (formErrors.name) setFormErrors({ ...formErrors, name: undefined });
@@ -563,7 +563,7 @@ export const AdminSkillsPage: React.FC = () => {
             <input
               id="skill-category"
               type="text"
-              value={formData.category}
+              value={formData.category || ''}
               onChange={(e) => {
                 setFormData({ ...formData, category: e.target.value });
                 if (formErrors.category) setFormErrors({ ...formErrors, category: undefined });
@@ -594,7 +594,7 @@ export const AdminSkillsPage: React.FC = () => {
                 min={0}
                 max={100}
                 step={1}
-                value={formData.proficiency}
+                value={formData.proficiency || ''}
                 onChange={(e) => {
                   setFormData({ ...formData, proficiency: e.target.value });
                   if (formErrors.proficiency) setFormErrors({ ...formErrors, proficiency: undefined });
@@ -620,7 +620,7 @@ export const AdminSkillsPage: React.FC = () => {
                 id="skill-order"
                 type="number"
                 step={1}
-                value={formData.display_order}
+                value={formData.display_order || ''}
                 onChange={(e) => {
                   setFormData({ ...formData, display_order: e.target.value });
                   if (formErrors.display_order) setFormErrors({ ...formErrors, display_order: undefined });
@@ -646,7 +646,7 @@ export const AdminSkillsPage: React.FC = () => {
             <input
               id="skill-icon-url"
               type="url"
-              value={formData.icon_url}
+              value={formData.icon_url || ''}
               onChange={(e) => {
                 setFormData({ ...formData, icon_url: e.target.value });
                 if (formErrors.icon_url) setFormErrors({ ...formErrors, icon_url: undefined });

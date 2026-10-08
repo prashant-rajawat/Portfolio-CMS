@@ -26,6 +26,8 @@ export function errorHandler(
   const isDbError =
     err.message &&
     (err.message.includes('password authentication failed') ||
+      err.message.includes('ECIRCUITBREAKER') ||
+      err.message.includes('too many authentication failures') ||
       err.message.includes('ECONNREFUSED') ||
       err.message.includes('ETIMEDOUT') ||
       err.message.includes('connection timeout') ||

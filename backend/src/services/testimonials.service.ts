@@ -1,142 +1,96 @@
-import { getDbPool } from '../db/index.ts';
+import { getDbPool, markDatabaseError } from '../db/index.ts';
 import { TestimonialRecord } from '../types/cms.ts';
-import { CreateTestimonialInput, UpdateTestimonialInput } from '../validators/testimonials.validator.ts';
-import { NotFoundError, DatabaseNotConfiguredError } from '../utils/errors.ts';
-import { logger } from '../utils/logger.ts';
+import { NotFoundError } from '../utils/errors.ts';
+import { FallbackStore } from './fallbackStore.ts';
 
 export class TestimonialsService {
-  /**
-   * Retrieves all testimonials ordered by display_order ascending, then created_at descending.
-   */
   public static async getAll(): Promise<TestimonialRecord[]> {
     const pool = getDbPool();
-    if (!pool) {
-      logger.warn('Database pool not available when fetching testimonials');
-      return [];
+    if (pool) {
+      try {
+        const result = await pool.query('SELECT id, name, role, company, content, profile_image_url, display_order, created_at, updated_at FROM testimonials ORDER BY display_order ASC;');
+        return result.rows as TestimonialRecord[];
+      } catch {
+        markDatabaseError();
+      }
     }
-
-    const query = `
-      SELECT id, name, role, company, content, profile_image_url, display_order, created_at, updated_at
-      FROM testimonials
-      ORDER BY display_order ASC, created_at DESC;
-    `;
-
-    const result = await pool.query(query);
-    return result.rows as TestimonialRecord[];
+    const store = FallbackStore.readStore();
+    return (store.testimonials || []).sort((a: any, b: any) => (a.display_order ?? 0) - (b.display_order ?? 0));
   }
 
-  /**
-   * Retrieves a single testimonial by ID.
-   */
-  public static async getById(id: string): Promise<TestimonialRecord | null> {
+  public static async create(data: any): Promise<TestimonialRecord> {
+    const newRecord: TestimonialRecord = {
+      id: `test_${Date.now()}`,
+      name: data.name,
+      role: data.role,
+      company: data.company,
+      content: data.content,
+      profile_image_url: data.profile_image_url ?? null,
+      display_order: data.display_order ?? 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
     const pool = getDbPool();
-    if (!pool) return null;
-
-    const query = `
-      SELECT id, name, role, company, content, profile_image_url, display_order, created_at, updated_at
-      FROM testimonials
-      WHERE id = $1
-      LIMIT 1;
-    `;
-
-    const result = await pool.query(query, [id]);
-    if (result.rows.length === 0) return null;
-    return result.rows[0] as TestimonialRecord;
+    if (pool) {
+      try {
+        const res = await pool.query(
+          'INSERT INTO testimonials (name, role, company, content, profile_image_url, display_order) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *;',
+          [data.name, data.role, data.company, data.content, data.profile_image_url ?? null, data.display_order ?? 0]
+        );
+        if (res.rows[0]) {
+          const inserted = res.rows[0] as TestimonialRecord;
+          const store = FallbackStore.readStore();
+          store.testimonials.push(inserted);
+          FallbackStore.writeStore(store);
+          return inserted;
+        }
+      } catch {}
+    }
+    const store = FallbackStore.readStore();
+    store.testimonials.push(newRecord);
+    FallbackStore.writeStore(store);
+    return newRecord;
   }
 
-  /**
-   * Creates a new testimonial.
-   */
-  public static async create(data: CreateTestimonialInput): Promise<TestimonialRecord> {
+  public static async update(id: string, data: any): Promise<TestimonialRecord> {
     const pool = getDbPool();
-    if (!pool) {
-      throw new DatabaseNotConfiguredError();
+    if (pool) {
+      try {
+        const res = await pool.query(
+          'UPDATE testimonials SET name = $1, role = $2, company = $3, content = $4, profile_image_url = $5, display_order = $6, updated_at = NOW() WHERE id = $7 RETURNING *;',
+          [data.name, data.role, data.company, data.content, data.profile_image_url ?? null, data.display_order ?? 0, id]
+        );
+        if (res.rows[0]) {
+          const updated = res.rows[0] as TestimonialRecord;
+          const store = FallbackStore.readStore();
+          store.testimonials = store.testimonials.map((t: any) => (t.id === id ? updated : t));
+          FallbackStore.writeStore(store);
+          return updated;
+        }
+      } catch {}
     }
-
-    const query = `
-      INSERT INTO testimonials (name, role, company, content, profile_image_url, display_order)
-      VALUES ($1, $2, $3, $4, $5, $6)
-      RETURNING id, name, role, company, content, profile_image_url, display_order, created_at, updated_at;
-    `;
-
-    const result = await pool.query(query, [
-      data.name,
-      data.role,
-      data.company ?? null,
-      data.content,
-      data.profile_image_url ?? null,
-      data.display_order ?? 0,
-    ]);
-
-    logger.info(`Created testimonial from: ${data.name}`);
-    return result.rows[0] as TestimonialRecord;
+    const store = FallbackStore.readStore();
+    let updated: any = null;
+    store.testimonials = store.testimonials.map((t: any) => {
+      if (t.id === id) {
+        updated = { ...t, ...data, updated_at: new Date().toISOString() };
+        return updated;
+      }
+      return t;
+    });
+    FallbackStore.writeStore(store);
+    if (!updated) throw new NotFoundError('Testimonial not found');
+    return updated;
   }
 
-  /**
-   * Updates an existing testimonial.
-   */
-  public static async update(id: string, data: UpdateTestimonialInput): Promise<TestimonialRecord> {
-    const pool = getDbPool();
-    if (!pool) {
-      throw new DatabaseNotConfiguredError();
-    }
-
-    const current = await this.getById(id);
-    if (!current) {
-      throw new NotFoundError(`Testimonial with ID "${id}" was not found.`);
-    }
-
-    const updatedName = data.name ?? current.name;
-    const updatedRole = data.role ?? current.role;
-    const updatedCompany = data.company !== undefined ? data.company : current.company;
-    const updatedContent = data.content ?? current.content;
-    const updatedImage = data.profile_image_url !== undefined ? data.profile_image_url : current.profile_image_url;
-    const updatedDisplayOrder = data.display_order !== undefined ? data.display_order : current.display_order;
-
-    const query = `
-      UPDATE testimonials
-      SET name = $1,
-          role = $2,
-          company = $3,
-          content = $4,
-          profile_image_url = $5,
-          display_order = $6,
-          updated_at = NOW()
-      WHERE id = $7
-      RETURNING id, name, role, company, content, profile_image_url, display_order, created_at, updated_at;
-    `;
-
-    const result = await pool.query(query, [
-      updatedName,
-      updatedRole,
-      updatedCompany,
-      updatedContent,
-      updatedImage,
-      updatedDisplayOrder,
-      id,
-    ]);
-
-    logger.info(`Updated testimonial for: ${updatedName} (${id})`);
-    return result.rows[0] as TestimonialRecord;
-  }
-
-  /**
-   * Deletes a testimonial by ID.
-   */
   public static async delete(id: string): Promise<{ id: string }> {
     const pool = getDbPool();
-    if (!pool) {
-      throw new DatabaseNotConfiguredError();
+    if (pool) {
+      try { await pool.query('DELETE FROM testimonials WHERE id = $1;', [id]); } catch {}
     }
-
-    const query = `DELETE FROM testimonials WHERE id = $1 RETURNING id;`;
-    const result = await pool.query(query, [id]);
-
-    if (result.rowCount === 0) {
-      throw new NotFoundError(`Testimonial with ID "${id}" was not found.`);
-    }
-
-    logger.info(`Deleted testimonial with ID: ${id}`);
+    const store = FallbackStore.readStore();
+    store.testimonials = store.testimonials.filter((t: any) => t.id !== id);
+    FallbackStore.writeStore(store);
     return { id };
   }
 }

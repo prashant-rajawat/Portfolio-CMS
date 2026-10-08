@@ -10,6 +10,15 @@ let activeConnectionString: string | null = null;
 let activePoolId: string | null = null;
 let isCustomPool = false;
 let supabaseClient: SupabaseClient | null = null;
+let dbTemporarilyUnavailableUntil = 0;
+
+export function markDatabaseError(): void {
+  dbTemporarilyUnavailableUntil = Date.now() + 60000;
+}
+
+export function isDatabaseOnline(): boolean {
+  return Date.now() >= dbTemporarilyUnavailableUntil;
+}
 
 /**
  * Sanitizes and normalizes the PostgreSQL connection string.
@@ -80,6 +89,10 @@ export function getDbPool(): pg.Pool | null {
     return realPool;
   }
 
+  if (!isDatabaseOnline()) {
+    return null;
+  }
+
   const rawUrl = (process.env.DATABASE_URL || config.databaseUrl || '').trim();
   if (!rawUrl) {
     if (realPool && !isCustomPool) {
@@ -121,7 +134,7 @@ export function getDbPool(): pg.Pool | null {
     isCustomPool = false;
 
     realPool.on('error', () => {
-      logger.debug('PostgreSQL pool client connection warning');
+      // Quiet pool error in standalone/fallback mode
     });
 
     return realPool;
@@ -201,6 +214,7 @@ export async function testDatabaseConnection(): Promise<DbHealthResult> {
     try {
       client = await pool.connect();
       await client.query('SELECT 1 AS alive;');
+      dbTemporarilyUnavailableUntil = 0;
       const latencyMs = Date.now() - start;
       logger.info(`PostgreSQL database connected successfully via pool (${latencyMs}ms)`);
       return {
@@ -212,8 +226,8 @@ export async function testDatabaseConnection(): Promise<DbHealthResult> {
         diagnostics,
       };
     } catch {
+      markDatabaseError();
       const latencyMs = Date.now() - start;
-      logger.debug('PostgreSQL connection test: database unreachable or authentication failed');
       return {
         status: 'disconnected',
         driver: 'pg',
